@@ -1,0 +1,79 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 19,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "displayName": "基础配置",
+      "description": "MinGW Makefiles + SDL2 基础配置",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Debug（测试程序）",
+      "description": "Debug 构建：仅编译测试程序 test/main.cpp -> main.exe",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "FGUI_BUILD_TEST": "ON",
+        "FGUI_BUILD_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "Release（测试程序）",
+      "description": "Release 构建：仅编译测试程序 test/main.cpp -> main.exe",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "FGUI_BUILD_TEST": "ON",
+        "FGUI_BUILD_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "debug-examples",
+      "inherits": "debug",
+      "displayName": "Debug（含示例）",
+      "description": "Debug 构建：测试程序 + example/ 示例程序",
+      "cacheVariables": {
+        "FGUI_BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "release-examples",
+      "inherits": "release",
+      "displayName": "Release（含示例）",
+      "description": "Release 构建：测试程序 + example/ 示例程序",
+      "cacheVariables": {
+        "FGUI_BUILD_EXAMPLES": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "debug-examples",
+      "configurePreset": "debug-examples"
+    },
+    {
+      "name": "release-examples",
+      "configurePreset": "release-examples"
+    }
+  ]
+}
