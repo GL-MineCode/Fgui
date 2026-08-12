@@ -10,7 +10,7 @@
 
 //一点点Trick:事实上由于懒癌，我还没有做MenuBar，所以菜单栏就用多个ComboBox叠加模拟，你肯定没想到ComboBox无选项默认文本还能这么用
 
-//非常明显，这个示例是D指导写的，问就是我懒
+//非常明显，这个示例绝大部分逻辑是D指导写的，问就是我懒
 //由于目前还没有控件排版引擎，所以自动排版布局是手动实现的（还好有D指导协助 :D）
 
 #define NOMINMAX
@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "decode.hpp"
+#define DefaultColorKit ColorKitPresets::Ocean
 #include "Fgui\Fgui.hpp"
 #include "SDLWindowStuff.hpp"
 #include "SDL_EventPlus.hpp"
@@ -644,10 +645,12 @@ static void LayoutControls(int win_w, int win_h){
 }
 
 int main(int argc, char** argv){
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-    TTF_Init();
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    SDL_SetHint(SDL_HINT_MOUSE_AUTO_CAPTURE, "1");
+
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+    TTF_Init();
 
     g_sws = SDLWindowStuff::Create("Fgui 文本编辑器", 1000, 800,
         SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN);
@@ -657,7 +660,7 @@ int main(int argc, char** argv){
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     SDL_Event eve;
-    EventPlus evp(&eve);
+    EventPlus evp(&eve, g_sws->native_handle);
     Timer fps_lim(60);
     bool mainloop = true;
 
@@ -778,7 +781,7 @@ int main(int argc, char** argv){
                     }
                 }
 
-                g_cb->MaintainEvent(&eve, top_relative_rect);
+                if(eve.window.windowID == SDL_GetWindowID(g_sws->native_handle)) g_cb->MaintainEvent(&eve, top_relative_rect);
 
                 if(eve.type == SDL_WINDOWEVENT){
                     if(eve.window.event == SDL_WINDOWEVENT_CLOSE){
