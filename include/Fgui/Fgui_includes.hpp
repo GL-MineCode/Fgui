@@ -21,6 +21,5 @@
 #include "SDLWindowStuff.hpp"
 #include "Times.hpp"
 #include "DebugText.hpp"
-#include "HYPER_TEXT.hpp"
 #include "decode.hpp"
 #include "FontEx.hpp"
