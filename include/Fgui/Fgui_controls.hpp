@@ -3907,7 +3907,7 @@ protected:
         dropdown_rect.h = visible * ih + pad * 2;
 
         SDL_Window* win = SDL_RenderGetWindow(renderer);
-        HWND parent_hwnd = win ? ASW_GetWindowHandleFromSDLWindow(win) : nullptr;
+        HWND parent_hwnd = win ? SDL_GetWindowHWND(win) : nullptr;
         float scale = PopupWindow::GetDpiScaleOf(renderer);
 
         // 父窗口客户区原点在屏幕上的物理坐标
@@ -4309,7 +4309,7 @@ public:
                     HWND main_hwnd = nullptr;
                     if(parent_renderer){
                         SDL_Window* w = SDL_RenderGetWindow(parent_renderer);
-                        if(w) main_hwnd = ASW_GetWindowHandleFromSDLWindow(w);
+                        if(w) main_hwnd = SDL_GetWindowHWND(w);
                     }
                     HWND popup_hwnd = tooltip.GetHwnd();
                     if(main_hwnd && fg != main_hwnd && fg != popup_hwnd){

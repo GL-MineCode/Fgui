@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <filesystem>
+#define _WIN32_WINNT 0x0A00
 #include <Windows.h>
 #include <functional>
 #include <commdlg.h>
@@ -17,9 +18,8 @@
 #include <queue>
 #include <optional>
 
+#include "decode.hpp"
 #include "SmoothCpp.hpp"
-#include "SDLWindowStuff.hpp"
 #include "Times.hpp"
 #include "DebugText.hpp"
-#include "decode.hpp"
 #include "FontEx.hpp"

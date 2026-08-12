@@ -1059,6 +1059,14 @@ class TooltipWindow{
 	}
 };
 
+#include <SDL_syswm.h>
+HWND SDL_GetWindowHWND(SDL_Window* win){
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(win,&info);
+    return info.info.win.window;
+}
+
 /**
  * @brief 弹出窗口（工具窗口），用于下拉框等需要独立显示的控件
  * 
@@ -1227,7 +1235,7 @@ public:
                 SDL_WINDOW_BORDERLESS | SDL_WINDOW_SKIP_TASKBAR | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIDDEN);
             if(!sdl_window) return false;
 
-            hwnd = ASW_GetWindowHandleFromSDLWindow(sdl_window);
+            hwnd = SDL_GetWindowHWND(sdl_window);
             if(!hwnd){
                 SDL_DestroyWindow(sdl_window);
                 sdl_window = nullptr;
