@@ -46,7 +46,8 @@
 #include "Fgui\Fgui.hpp"
 
 int main(int,char**){
-    InitAllSDL;
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+    TTF_Init();
     SDLWindowStuff* sws = SDLWindowStuff::Create("程序模板",1000,800,SDL_WINDOW_ALLOW_HIGHDPI);
     SDL_Renderer* renderer = sws->CreateRenderer();
     SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
