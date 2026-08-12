@@ -141,7 +141,6 @@ if(FGUI_BUILD_EXAMPLES)
         get_filename_component(example_name ${example_src} NAME_WE)
         set(example_target "example_${example_name}")
         add_executable(${example_target} ${example_src} ${EXT_SRCS})
-        # 示例可执行文件输出到 example/ 目录，避免与 main.exe 混在一起
         set_target_properties(${example_target} PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
         )
