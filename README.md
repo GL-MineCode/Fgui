@@ -108,6 +108,7 @@ cmake --build build/debug-examples --target examples
 ## 未来计划
 - 支持排版引擎，用于自动布局控件，属性类似CSS
 - 支持GenFromXML功能，用于从XML文件加载并生成控件(It saves your hands!   -   指可以AI生成XML文件，而不是手动写)
+- 支持跨平台（Linux平台）
 
 ## Contributor
 
