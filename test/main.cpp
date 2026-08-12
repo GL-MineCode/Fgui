@@ -205,6 +205,11 @@ int main(int,char**){
         subcb->PushbackControl("controlbox1.button1", ctl);
     }
 
+    // 嵌套 ControlBox 内加入可滚动 InputBox：验证滚轮应只滚动该 InputBox（及其所在 subcb），而不牵连根容器
+    subcb->PushbackControl("controlbox1.input", std::make_shared<InputBox>(
+        "嵌套输入框：\n第一行\n第二行\n第三行\n第四行\n第五行\n第六行\n第七行\n第八行\n第九行\n第十行",
+        &font, 20, FGUI_INPUTBOX_FLAG_ALLOW_MULTILINES | FGUI_INPUTBOX_FLAG_VERTICAL_SCROLL, SDL_Rect{300, 220, 180, 150}));
+
     {
         auto ctl = std::make_shared<Slider>(0.0f,100.0f,50.0f,SDL_Rect{100,600,300,50});
         ctl->actions.OnBeginDragging = [](Slider*,float v){
