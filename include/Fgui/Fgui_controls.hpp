@@ -43,7 +43,9 @@ struct Fgui_ColorKit
 	SDL_Color TextColor;
 };
 
+#ifndef DefaultColorKit
 #define DefaultColorKit ColorKitPresets::Default
+#endif
 
 namespace ColorKitPresets{
 
@@ -216,6 +218,11 @@ public:
     //控件矩形范围
     SDL_Rect default_rect = {0,0,0,0};
 
+    // 滚轮事件消费标记：本控件（或其子树）实际滚动滚轮后置 true，父容器据此跳过自身滚动
+    bool wheel_consumed = false;
+    void ResetWheelConsumed(){ wheel_consumed = false; }
+    bool IsWheelConsumed() const{ return wheel_consumed; }
+
 	virtual ~Fgui_Control(){};
 
     /**
@@ -345,6 +352,8 @@ public:
      * @param eve SDL事件
      */
     void MaintainEvent(const SDL_Event* eve,const SDL_Rect& relative_rect){
+        // 每轮滚轮事件重置消费标记（放在可见性判断前，避免隐藏子控件残留旧值被误判为已消费）
+        if(eve->type == SDL_MOUSEWHEEL) wheel_consumed = false;
         if(!visibility) return;
         this->ActionOnEvent(eve,relative_rect);
     }
@@ -965,12 +974,14 @@ class ControlBox : public Fgui_Control{
             }
         }
         else if(eve->type == SDL_MOUSEBUTTONUP){
-            if(!isPointInsideRect({eve->button.x,eve->button.y},rect)){
-                return false;
-            }
+            return true;
         }
         else if(eve->type == SDL_MOUSEWHEEL){
-            if(!isPointInsideRect({eve->button.x,eve->button.y},rect)){
+            // SDL_Event 为 union，滚轮事件里 button.x/y 与 wheel 结构偏移错位（读到的是 wheel.y 和 direction），
+            // 必须用 SDL_GetMouseState 取真实鼠标坐标做命中测试，否则嵌套容器的滚轮永不透传给内层控件
+            int mx, my;
+            SDL_GetMouseState(&mx, &my);
+            if(!isPointInsideRect({mx,my},rect)){
                 return false;
             }
         }
@@ -1185,9 +1196,37 @@ class ControlBox : public Fgui_Control{
         }
 
         if(event->type == SDL_MOUSEWHEEL){
-            if(isPointInsideRect(mouse_pos,new_rel_rect)){
-                sb_v->SetScrollPos(sb_v->GetScrollPos() - 45 * event->wheel.y);
-                sb_h->SetScrollPos(sb_h->GetScrollPos() + 45 * event->wheel.x);
+            // 滚轮消费机制：任一子控件（或其子树）已消费滚轮则本容器不再滚动，
+            // 并把消费结果继续向上层报告（避免根容器与嵌套容器同时滚动）
+            bool child_consumed = false;
+            for(auto& i : controls){
+                if(i.control_ptr->IsWheelConsumed()){
+                    child_consumed = true;
+                    break;
+                }
+            }
+            if(child_consumed){
+                wheel_consumed = true;
+            }
+            else{
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
+                if(isPointInsideRect({mx,my},new_rel_rect)){
+                    SDL_Rect rect = GetInnerRect();
+                    // 仅当本容器该方向确有溢出（可滚动）时才滚动并消费；无溢出则不消费（透传给父容器）
+                    bool can_v = (rect.h != default_rect.h);
+                    bool can_h = (rect.w != default_rect.w);
+                    bool scrolled = false;
+                    if(can_v && event->wheel.y != 0){
+                        sb_v->SetScrollPos(sb_v->GetScrollPos() - 45 * event->wheel.y);
+                        scrolled = true;
+                    }
+                    if(can_h && event->wheel.x != 0){
+                        sb_h->SetScrollPos(sb_h->GetScrollPos() + 45 * event->wheel.x);
+                        scrolled = true;
+                    }
+                    if(scrolled) wheel_consumed = true;
+                }
             }
         }
         else if(event->type == SDL_MOUSEMOTION){
@@ -2203,6 +2242,29 @@ public:
                     SDL_RenderFillRect(renderer,&dst);
                 }
             }
+
+            // 特判：空行没有字形，若空行所在索引位置落在选区内，
+            // 假装那里有一个空格被选中，让用户能直观看出该空行处于选中状态
+            if(text[li].empty()){
+                size_t line_pos = GetLineStartIndex(li);
+                if(focused && line_pos >= selection_begin && line_pos < selection_end){
+                    int space_w = 0, space_h = 0;
+                    font->SizeText(ptsize, " ", &space_w, &space_h);
+                    space_w *= 2; //加宽一点
+                    if(space_w <= 0) space_w = line.rect.h / 2; // 兜底：退化为半个行高
+                    SDL_Rect dst = {
+                        draw_area.x - cam_x,
+                        draw_area.y + line_y - cam_y,
+                        space_w,
+                        line.rect.h
+                    };
+                    if(isRectInRect(dst,inner_abs)){
+                        SDL_SetRenderDrawColor(renderer,255,255,255,122);
+                        SDL_RenderFillRect(renderer,&dst);
+                    }
+                }
+            }
+
             line_y += line.rect.h;
         }
         
@@ -2260,15 +2322,21 @@ public:
             SDL_Point mpos;
             SDL_GetMouseState(&mpos.x,&mpos.y);
             if(isPointInsideRect(mpos,draw_area)){
+                bool scrolled = false;
                 if(sb_v && show_sb_v){
                     sb_v->SetScrollPos(sb_v->GetScrollPos() - 30 * event->wheel.y);
                     cam_y = sb_v->GetScrollPos();
-                    this->InvalidateRect();
+                    scrolled = true;
                 }
                 if(sb_h && show_sb_h){
                     sb_h->SetScrollPos(sb_h->GetScrollPos() - 30 * event->wheel.x);
                     cam_x = sb_h->GetScrollPos();
+                    scrolled = true;
+                }
+                // 实际滚动了就消费滚轮，阻止父容器同步滚动
+                if(scrolled){
                     this->InvalidateRect();
+                    wheel_consumed = true;
                 }
             }
         }
@@ -4202,6 +4270,7 @@ public:
                     if(over_dropdown || over_combo){
                         int max_scroll = std::max(0, (int)GetVisibleItemIndices().size() - (int)MAX_VISIBLE_ITEMS);
                         scroll_offset = std::clamp(scroll_offset - event->wheel.y, 0, max_scroll);
+                        wheel_consumed = true;   // 消费滚轮，阻止父容器同步滚动
                     }
                     else{
                         CloseDropdown();
@@ -5671,6 +5740,10 @@ class TabControl : public Fgui_Control{
                 try{
                     auto fd = FindTab(active_tab_id);
                     fd->content->MaintainEvent(event, content_screen);
+                    // 激活页 ControlBox（或其子树）消费了滚轮则向上层报告，父容器不再滚动自身
+                    if(event->type == SDL_MOUSEWHEEL){
+                        wheel_consumed = fd->content->IsWheelConsumed();
+                    }
                 }
                 catch(...){
                     //ignore it
