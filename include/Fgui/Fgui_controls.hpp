@@ -2211,11 +2211,28 @@ public:
         if(sur_text_buff){
             SDL_Rect dst = {draw_area.x - cam_x,draw_area.y - cam_y,buff_w,buff_h};
             SDL_Rect adst = RectIntersection(dst,inner_abs);
-            SDL_Rect src = {adst.x - dst.x,adst.y - dst.y,adst.w,adst.h};
+            if(adst.w > 0 && adst.h > 0){
+                // 可见区域在缓冲 surface 中的像素范围
+                SDL_Rect src = {adst.x - dst.x,adst.y - dst.y,adst.w,adst.h};
 
-            SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer,sur_text_buff);
-            SDL_RenderCopy(renderer,tex,&src,&adst);
-            SDL_DestroyTexture(tex);
+                // 视口（可见区域）远小于渲染器纹理尺寸上限（如 direct3d 为 8192x8192），
+                // 因此只需裁剪出可见区域上传为一个小纹理即可。不要对整块缓冲调用
+                // SDL_CreateTextureFromSurface——超大缓冲（如超长单行文本 > max_texture_width）
+                // 会因超限失败返回 NULL，导致文本整段不显示。
+                const int bpp = 4; // sur_text_buff 为 32bpp (ARGB8888)
+                SDL_Texture* tex = SDL_CreateTexture(renderer, sur_text_buff->format->format,SDL_TEXTUREACCESS_STATIC, src.w, src.h);
+                if(tex){
+                    // SDL_CreateTexture 默认 blend mode 为 NONE，而 SDL_CreateTextureFromSurface
+                    // 会自动设为 BLEND。若不显式设置，sur_text_buff 中透明黑色背景像素 (0,0,0,0)
+                    // 会被当作不透明黑色直接写入，覆盖编辑区背景 → 文本区显示为纯黑。
+                    // 必须设为 BLEND：透明处透出背景、字形不透明像素正常绘制。
+                    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                    Uint8* px = (Uint8*)sur_text_buff->pixels + (size_t)src.y * sur_text_buff->pitch + (size_t)src.x * bpp;
+                    SDL_UpdateTexture(tex, NULL, px, sur_text_buff->pitch);
+                    SDL_RenderCopy(renderer,tex,NULL,&adst);
+                    SDL_DestroyTexture(tex);
+                }
+            }
         }
 
         // 绘制选区高亮（覆盖整行高度，保证盖住字形，字形在surface内自带ascent偏移）
