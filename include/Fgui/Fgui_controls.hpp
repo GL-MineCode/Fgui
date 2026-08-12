@@ -1698,7 +1698,7 @@ public:
     }
 
     std::string ActionOnGetTypeName() const override{
-        return "Fgui.PushButton";
+        return "Fgui.LinkText";
     }
 };
 
