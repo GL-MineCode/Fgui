@@ -68,7 +68,7 @@ int main(int,char**){
         cb->MaintainTimer({0,0,1000,800});
         cb->MaintainRender(renderer,{0,0,1000,800});
         SDL_RenderPresent(renderer);
-        fps_lim.Wait();
+        fps_lim.Delay();
     }
 }
 ```
