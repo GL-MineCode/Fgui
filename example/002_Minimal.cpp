@@ -17,10 +17,14 @@ int main(int,char**){
 
     //准备GUI
     FontEx font({"font.ttf"});
+    //创建根容器
     std::shared_ptr<ControlBox> cb = std::make_shared<ControlBox>(SDL_Rect{0,0,1000,800});
+    //创建一个按钮
     auto button = cb->PushbackControl("hello", std::make_shared<PushButton>("Hello Fgui!",&font,128,SDL_Rect{0,0,0,0}));
+    //居中显示
     button->default_rect.x = 500 - button->default_rect.w / 2;
     button->default_rect.y = 400 - button->default_rect.h / 2;
+    //设定点击回调
     button->actions.OnClick = [](PushButton *){printf("Hello Fgui!\n");};
 
     //SDL事件循环必须事项
