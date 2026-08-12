@@ -8,7 +8,7 @@
 //   - 快捷键：Ctrl+N/O/S/W、Ctrl+Shift+S、Ctrl+Z/Y、Tab 插入制表符
 //
 
-//一点点Trick:事实上由于懒癌，我还没有做MenuBar，所以菜单栏就用多个ComboBox叠加模拟，你肯定没想到ComboBox无选项默认文本还能这么用
+//一点点Trick:事实上由于懒癌，我还没有做MenuBar，所以菜单栏就用多个ComboBox模拟，你肯定没想到ComboBox无选项默认文本还能这么用
 
 //非常明显，这个示例绝大部分逻辑是D指导写的，问就是我懒
 //由于目前还没有控件排版引擎，所以自动排版布局是手动实现的（还好有D指导协助 :D）
@@ -533,8 +533,7 @@ static void HandleMenuCommand(int id){
         case 20:
             GLDLG::messageBox("关于",
                 "Fgui 文本编辑器示例\n\n"
-                "基于 Fgui + GL_Commdlg 构建\n"
-                "多标签页 + 菜单由 ComboBox 模拟",
+                "基于 Fgui + GL_Commdlg",
                 {{1, "确定"}});
             break;
         default: break;
