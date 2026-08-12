@@ -1,6 +1,7 @@
 #define NOMINMAX
 
 #include <cstdio>
+#include <SDL_image.h>
 #include "decode.hpp"
 #include "SDLWindowStuff.hpp"
 #include "SDL_EventPlus.hpp"
@@ -8,12 +9,13 @@
 #include "DebugText.hpp"
 #include "StopWatch.hpp"
 #include "SmoothCpp.hpp"
-#include "FastRender\fastrender.h"
 #define ENABLE_QRCODE_MODULE
 #include "Fgui\Fgui.hpp"
 
 int main(int,char**){
-    InitAllSDL;
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+    TTF_Init();
+    IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     SDL_SetHint(SDL_HINT_IME_SHOW_UI,"1");
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"0");
     SDLWindowStuff* sws = SDLWindowStuff::Create("程序模板",1000,800,SDL_WINDOW_ALLOW_HIGHDPI);
@@ -443,6 +445,8 @@ int main(int,char**){
 
     SDL_DestroyRenderer(renderer);
     sws->Release();
-    QuitAllSDL;
+    IMG_Quit();
+    TTF_Quit();
+    SDL_Quit();
     return 0;
 }
