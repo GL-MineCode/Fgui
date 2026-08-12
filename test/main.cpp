@@ -131,16 +131,42 @@ int main(int,char**){
         auto ctl = std::make_shared<CheckBox>(SDL_Rect{100,400,50,50});
         ctl->actions.OnChange = [](CheckBox* cb,CheckBox::CheckBoxState state){
             if(state == CheckBox::CheckBoxState::CHECKBOX_STATE_CHECKED){
-                printf("Checked!\n");
+                printf("cb1:Checked!\n");
             }
             else if(state == CheckBox::CheckBoxState::CHECKBOX_STATE_UNCHECKED){
-                printf("Unchecked!\n");
+                printf("cb1:Unchecked!\n");
             }
         };
         cb->PushbackControl("checkbox1",ctl);
     }
+    {
+        auto ctl = std::make_shared<CheckBox>(SDL_Rect{160,400,50,50});
+        ctl->actions.OnChange = [](CheckBox* cb,CheckBox::CheckBoxState state){
+            if(state == CheckBox::CheckBoxState::CHECKBOX_STATE_CHECKED){
+                printf("cb2:Checked!\n");
+            }
+            else if(state == CheckBox::CheckBoxState::CHECKBOX_STATE_UNCHECKED){
+                printf("cb2:Unchecked!\n");
+            }
+        };
+        cb->PushbackControl("checkbox2",ctl);
+    }
+    {
+        auto ctl = std::make_shared<CheckBox>(SDL_Rect{220,400,50,50});
+        ctl->actions.OnChange = [](CheckBox* cb,CheckBox::CheckBoxState state){
+            if(state == CheckBox::CheckBoxState::CHECKBOX_STATE_CHECKED){
+                printf("cb3:Checked!\n");
+            }
+            else if(state == CheckBox::CheckBoxState::CHECKBOX_STATE_UNCHECKED){
+                printf("cb3:Unchecked!\n");
+            }
+        };
+        cb->PushbackControl("checkbox3",ctl);
+    }
 
     cb->FindControl<CheckBox>("checkbox1")->SetState(CheckBox::CheckBoxState::CHECKBOX_STATE_INDETERMINATE);
+    cb->FindControl<CheckBox>("checkbox2")->SetState(CheckBox::CheckBoxState::CHECKBOX_STATE_INDETERMINATE);
+    cb->FindControl<CheckBox>("checkbox3")->SetState(CheckBox::CheckBoxState::CHECKBOX_STATE_INDETERMINATE);
 
     {
         auto ctl = std::make_shared<RadioButton>(SDL_Rect{100,500,40,40});
