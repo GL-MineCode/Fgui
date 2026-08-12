@@ -43,14 +43,36 @@ set(SDL2TTF_DIR   "${CMAKE_SOURCE_DIR}/dependency/SDL2_ttf-2.24.0")
 set(SDL2IMAGE_DIR "${CMAKE_SOURCE_DIR}/dependency/SDL2_image-2.8.12")
 
 # ============================================================
+# 外部工具库目录（非 SDL 官方依赖）
+#   优先使用本机开发路径；若不存在（例如他人克隆本仓库，或换机）
+#   则自动回退到仓库内的 otherlibs/ 目录。
+#   首次在新机器上构建时，请把依赖头文件复制到 otherlibs/ 下，
+#   清单见 docs/wiki/01-构建与项目结构.md。
+# ============================================================
+
+# Fgui 依赖的工具头文件（SmoothCpp/SDLWindowStuff/decode/FontEx 等）
+if(EXISTS "D:/AppInstallers/RecentlyC++Programs")
+    set(FGUI_EXT_LIBS_DIR "D:/AppInstallers/RecentlyC++Programs")
+else()
+    set(FGUI_EXT_LIBS_DIR "${CMAKE_SOURCE_DIR}/otherlibs")
+endif()
+
+# GL_Commdlg 对话框库（示例程序 001_TextEditor 需要）
+if(EXISTS "D:/Desktop/Git/GL_Commdlg/include")
+    set(GL_COMMDLG_DIR "D:/Desktop/Git/GL_Commdlg/include")
+else()
+    set(GL_COMMDLG_DIR "${CMAKE_SOURCE_DIR}/otherlibs")
+endif()
+
+# ============================================================
 # 头文件搜索路径
 # ============================================================
 include_directories(
     ${SDL2_DIR}/include
     ${SDL2TTF_DIR}/include
     ${SDL2IMAGE_DIR}/include
-    "D:/Desktop/Git/GL_Commdlg/include"
-    "D:/AppInstallers/RecentlyC++Programs"
+    ${GL_COMMDLG_DIR}
+    ${FGUI_EXT_LIBS_DIR}
     ${CMAKE_SOURCE_DIR}/include
 )
 
@@ -65,9 +87,11 @@ link_directories(
 
 # ============================================================
 # 外部 C++ 源文件（QR-Code-generator）
+#   qrcodegen 已随仓库自带于 include/Fgui/QR-Code-generator/，
+#   无需再从外部目录引用
 # ============================================================
 set(EXT_SRCS
-    "D:/AppInstallers/RecentlyC++Programs/Fgui/QR-Code-generator/qrcodegen.cpp"
+    "${CMAKE_SOURCE_DIR}/include/Fgui/QR-Code-generator/qrcodegen.cpp"
 )
 
 # ============================================================
