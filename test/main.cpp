@@ -40,7 +40,6 @@ int main(int,char**){
         "font.ttf"
     });
 
-    //BUG: 宽度拓展不工作
     std::shared_ptr<ControlBox> cb = std::make_shared<ControlBox>(SDL_Rect{0,0,1000,800},2000,9000);
 
     //cb->PushbackControl("scroll",std::make_shared<ScrollBarV>(1000,500,SDL_Rect{980,0,20,800}));
@@ -430,15 +429,6 @@ int main(int,char**){
 
             //printf("{%d,%d,%d,%d} TEST!\n",i->GetRelativeInvaildRect().x,i->GetRelativeInvaildRect().y,i->GetRelativeInvaildRect().w,i->GetRelativeInvaildRect().h);
 
-            std::vector<HotArea>::iterator it = ha.begin();
-            for(;it != ha.end();it++){
-                if(SDL_RectsEqual(&it->rect,&dirty_rect)){
-                    it->timestamp = SDL_GetTicks();
-                    break;
-                }
-            }
-            if(it == ha.end()) ha.push_back({dirty_rect,SDL_GetTicks()});
-
             // 在持久帧缓冲纹理上局部重绘脏区（保留 buf 上的完整旧画面）
             SDL_FRect fr_dirty = toFRect(dirty_rect);
             SDL_SetRenderTarget(renderer, buf);
@@ -447,22 +437,37 @@ int main(int,char**){
             cb->MaintainRender(renderer,top_relative_rect);
             SDL_SetRenderTarget(renderer, NULL);
 
-            // 整体拷贝持久缓冲到 backbuffer，再叠加热力图并呈现
-            SDL_RenderTexture(renderer,buf,NULL,NULL);
-            if(enable_heatmap){
-                for(std::vector<HotArea>::iterator i = ha.begin();i < ha.end();){
-                    Uint64 span = SDL_GetTicks() - i->timestamp;
-                    if(span > 1000){
-                        i = ha.erase(i);
-                        continue;
+            if(!enable_heatmap){
+                SDL_RenderTexture(renderer,buf,NULL,NULL);
+                SDL_RenderPresent(renderer);
+            }
+            else{
+                std::vector<HotArea>::iterator it = ha.begin();
+                for(;it != ha.end();it++){
+                    if(SDL_RectsEqual(&it->rect,&dirty_rect)){
+                        it->timestamp = SDL_GetTicks();
+                        break;
                     }
-                    int a = 255 - 255.0f * (float(span) / 1000.0f);
-                    SDL_SetRenderDrawColor(renderer,255,20,20,a);   
-                    SDL_FRect fr = toFRect(i->rect);
-                    SDL_RenderRect(renderer,&fr);
-                    paintDBTextFormat(renderer,i->rect.x,i->rect.y,{255,20,20,(uint8_t)a},2,{0,0},"%llu",span);
-                    i++;
                 }
+                if(it == ha.end()) ha.push_back({dirty_rect,SDL_GetTicks()});
+            }
+        }
+        if(enable_heatmap){
+            SDL_RenderTexture(renderer,buf,NULL,NULL);
+            for (std::vector<HotArea>::iterator i = ha.begin(); i < ha.end();)
+            {
+                Uint64 span = SDL_GetTicks() - i->timestamp;
+                if (span > 1000)
+                {
+                    i = ha.erase(i);
+                    continue;
+                }
+                int a = 255 - 255.0f * (float(span) / 1000.0f);
+                SDL_SetRenderDrawColor(renderer, 255, 20, 20, a);
+                SDL_FRect fr = toFRect(i->rect);
+                SDL_RenderRect(renderer, &fr);
+                paintDBTextFormat(renderer, i->rect.x, i->rect.y, {255, 20, 20, (uint8_t)a}, 2, {0, 0}, "%llu", span);
+                i++;
             }
             SDL_RenderPresent(renderer);
         }
