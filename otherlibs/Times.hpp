@@ -1,7 +1,7 @@
 #ifndef __INC_TIMES_
 #define __INC_TIMES_
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 class Timer {  
 private:  
@@ -10,22 +10,22 @@ private:
 public:  
     Timer() {  
         targetTicksPerFrame = 1000 / 30;  
-        lastFrameTicks = SDL_GetTicks64();
+        lastFrameTicks = SDL_GetTicks();
     }  
     void Set(Uint64 maxFPS){
         targetTicksPerFrame = 1000 / maxFPS;  
-        lastFrameTicks = SDL_GetTicks64(); 
+        lastFrameTicks = SDL_GetTicks(); 
     }
     Timer(Uint64 maxFPS) {  
         this->Set(maxFPS); 
     }  
     void Delay() {  
-        Uint64 currentTicks = SDL_GetTicks64();  
+        Uint64 currentTicks = SDL_GetTicks();  
         Uint64 elapsedTicks = currentTicks - lastFrameTicks;   
         if (elapsedTicks < targetTicksPerFrame) {  
             SDL_Delay(static_cast<Uint32>(targetTicksPerFrame - elapsedTicks));  
         }  
-        lastFrameTicks = SDL_GetTicks64();  
+        lastFrameTicks = SDL_GetTicks();  
     }  
 };
 #endif

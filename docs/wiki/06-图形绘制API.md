@@ -90,7 +90,7 @@ void paintSpeechBubble(SDL_Renderer* renderer, SDL_Rect rect, SDL_Color fill_col
 // "写字"动画（按 process 0~1 逐步画折线，CheckBox 勾选动画用）
 void paintWritingLines(SDL_Renderer* renderer, const SDL_Point* points, int count, double process);
 
-// 关闭按钮 X（配合 SDL_RenderDrawLine 用）
+// 关闭按钮 X（内部使用 SDL_RenderLine 绘制）
 void paintX(SDL_Renderer* render, SDL_Rect rct, SDL_Color color);
 
 // 凹陷/凸起边框

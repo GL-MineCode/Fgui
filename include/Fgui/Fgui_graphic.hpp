@@ -13,11 +13,11 @@ void paint3DSurface(SDL_Renderer* r,SDL_Texture* texture,SDL_FPoint& perA,SDL_FP
 		uv_y + uv_h / 2
 	};
 	SDL_Vertex rect[9] = {
-		/* 0 */{perA, {255, 255, 255, 255}, {uv_x, uv_y}},
-		/* 1 */{perB, {255, 255, 255, 255}, {uv_x + uv_w, uv_y}},
-		/* 2 */{perC, {255, 255, 255, 255}, {uv_x + uv_w, uv_y + uv_h}},
-		/* 3 */{perD, {255, 255, 255, 255}, {uv_x, uv_y + uv_h}},
-		/* 4 */{perE, {255, 255, 255, 255}, ETP},
+		/* 0 */{perA, {1.0f, 1.0f, 1.0f, 1.0f}, {uv_x, uv_y}},
+		/* 1 */{perB, {1.0f, 1.0f, 1.0f, 1.0f}, {uv_x + uv_w, uv_y}},
+		/* 2 */{perC, {1.0f, 1.0f, 1.0f, 1.0f}, {uv_x + uv_w, uv_y + uv_h}},
+		/* 3 */{perD, {1.0f, 1.0f, 1.0f, 1.0f}, {uv_x, uv_y + uv_h}},
+		/* 4 */{perE, {1.0f, 1.0f, 1.0f, 1.0f}, ETP},
 	};
 	const int ind[12] = {
 		0,1,4,
@@ -76,7 +76,7 @@ void paint3DSurfaceI(SDL_Renderer* r,SDL_Texture* texture,SDL_FPoint& perA,SDL_F
 SDL_Rect getTextSize(TTF_Font *f, const char *str)
 {
 	SDL_Rect size = {0, 0};
-	TTF_SizeUTF8(f, str, &size.w, &size.h);
+	TTF_GetStringSize(f, str, strlen(str), &size.w, &size.h);
 	return size;
 }
 
@@ -84,16 +84,18 @@ SDL_Rect paintTextWithRect(SDL_Renderer *r, int x, int y, TTF_Font *f, const cha
 {
 	if (!str[0])
 		return {x, y, -1, -1};
-	SDL_Surface *sur = TTF_RenderUTF8_Blended(f, str, color);
+	SDL_Surface *sur = TTF_RenderText_Blended(f, str, strlen(str), color);
 	SDL_Rect size = {x, y, sur->w, sur->h};
 	SDL_Texture *tex = SDL_CreateTextureFromSurface(r, sur);
 
 	SDL_SetTextureAlphaMod(tex, color.a);
 	SDL_SetRenderDrawColor(r, color_rect.r, color_rect.g, color_rect.b, color_rect.a);
-	SDL_RenderFillRect(r, &size);
-	SDL_RenderCopy(r, tex, NULL, &size);
+    SDL_FRect __fr_1 = toFRect(size);
+	SDL_RenderFillRect(r, &__fr_1);
+    SDL_FRect __fr_2 = toFRect(size);
+	SDL_RenderTexture(r, tex, NULL, &__fr_2);
 	SDL_DestroyTexture(tex);
-	SDL_FreeSurface(sur);
+	SDL_DestroySurface(sur);
 	return size;
 }
 
@@ -101,15 +103,16 @@ SDL_Rect paintText(SDL_Renderer *r, int x, int y, TTF_Font *f, const char *str, 
 {
 	if (!str[0])
 		return {x, y, -1, -1};
-	SDL_Surface *sur = TTF_RenderUTF8_Blended(f, str, color);
+	SDL_Surface *sur = TTF_RenderText_Blended(f, str, strlen(str), color);
 	SDL_Rect size = {x - (float)sur->w * center.x, y - (float)sur->h * center.y, sur->w, sur->h};
 	SDL_Texture *tex = SDL_CreateTextureFromSurface(r, sur);
 
 	SDL_SetTextureAlphaMod(tex, color.a);
 
-	SDL_RenderCopy(r, tex, NULL, &size);
+    SDL_FRect __fr_3 = toFRect(size);
+	SDL_RenderTexture(r, tex, NULL, &__fr_3);
 	SDL_DestroyTexture(tex);
-	SDL_FreeSurface(sur);
+	SDL_DestroySurface(sur);
 	return size;
 }
 
@@ -117,15 +120,16 @@ SDL_Rect paintText_wrapped(SDL_Renderer *r, int x, int y,int warpLen, TTF_Font *
 {
 	if (!str[0])
 		return {x, y, -1, -1};
-	SDL_Surface *sur = TTF_RenderUTF8_Blended_Wrapped(f, str, color, warpLen);
+	SDL_Surface *sur = TTF_RenderText_Blended_Wrapped(f, str, strlen(str), color, warpLen);
 	SDL_Rect size = {x - (float)sur->w * center.x, y - (float)sur->h * center.y, sur->w, sur->h};
 	SDL_Texture *tex = SDL_CreateTextureFromSurface(r, sur);
 
 	SDL_SetTextureAlphaMod(tex, color.a);
 
-	SDL_RenderCopy(r, tex, NULL, &size);
+    SDL_FRect __fr_4 = toFRect(size);
+	SDL_RenderTexture(r, tex, NULL, &__fr_4);
 	SDL_DestroyTexture(tex);
-	SDL_FreeSurface(sur);
+	SDL_DestroySurface(sur);
 	return size;
 }
 
@@ -133,7 +137,7 @@ SDL_Rect paintText_wm(SDL_Renderer *r, int x, int y,int wmax, TTF_Font *f, const
 {
 	if (!str[0])
 		return {x, y, -1, -1};
-	SDL_Surface *sur = TTF_RenderUTF8_Blended(f, str, color);
+	SDL_Surface *sur = TTF_RenderText_Blended(f, str, strlen(str), color);
 	SDL_Rect size = {x, y, sur->w, sur->h};
 	SDL_Rect wmax_rc = size;
 	wmax_rc.x = 0;
@@ -151,9 +155,11 @@ SDL_Rect paintText_wm(SDL_Renderer *r, int x, int y,int wmax, TTF_Font *f, const
 
 	SDL_SetTextureAlphaMod(tex, color.a);
 
-	SDL_RenderCopy(r, tex, &wmax_rc, &size);
+    SDL_FRect __fr_5 = toFRect(wmax_rc);
+    SDL_FRect __fr_6 = toFRect(size);
+	SDL_RenderTexture(r, tex, &__fr_5, &__fr_6);
 	SDL_DestroyTexture(tex);
-	SDL_FreeSurface(sur);
+	SDL_DestroySurface(sur);
 	return size;
 }
 
@@ -161,14 +167,14 @@ SDL_Rect paintText_roll(SDL_Renderer *r, int x, int y,int wmax,float speed, TTF_
 {
 	if (!str[0])
 		return {x, y, -1, -1};
-	SDL_Surface *sur = TTF_RenderUTF8_Blended(f, str, color);
+	SDL_Surface *sur = TTF_RenderText_Blended(f, str, strlen(str), color);
 	SDL_Rect size = {x, y, sur->w, sur->h};
 	SDL_Rect wmax_rc = size;
 	if(size.w < wmax){
 		wmax_rc.x = 0;
 	}else{
 		int xll = (size.w - wmax);
-		float temp = fmod(((SDL_GetTicks64() / 10.0f) * speed),xll * 2 + 200);
+		float temp = fmod(((SDL_GetTicks() / 10.0f) * speed),xll * 2 + 200);
 		if(temp < xll){
 			wmax_rc.x = temp;
 		}
@@ -196,16 +202,18 @@ SDL_Rect paintText_roll(SDL_Renderer *r, int x, int y,int wmax,float speed, TTF_
 
 	SDL_SetTextureAlphaMod(tex, color.a);
 
-	SDL_RenderCopy(r, tex, &wmax_rc, &size);
+    SDL_FRect __fr_7 = toFRect(wmax_rc);
+    SDL_FRect __fr_8 = toFRect(size);
+	SDL_RenderTexture(r, tex, &__fr_7, &__fr_8);
 	SDL_DestroyTexture(tex);
-	SDL_FreeSurface(sur);
+	SDL_DestroySurface(sur);
 	return size;
 }
 
 SDL_Rect paintText_compressed(SDL_Renderer *r, int x, int y,int wmax, TTF_Font *f, const char *str, SDL_Color color,SDL_FPoint center = {0.0f,0.0f}){
 	if (!str[0])
 		return {x, y, -1, -1};
-	SDL_Surface *sur = TTF_RenderUTF8_Blended(f, str, color);
+	SDL_Surface *sur = TTF_RenderText_Blended(f, str, strlen(str), color);
 	SDL_Rect size = {x, y, sur->w, sur->h};
 	if(size.w > wmax)
 	{
@@ -219,19 +227,21 @@ SDL_Rect paintText_compressed(SDL_Renderer *r, int x, int y,int wmax, TTF_Font *
 
 	SDL_SetTextureAlphaMod(tex, color.a);
 
-	SDL_RenderCopy(r, tex, NULL, &size);
+    SDL_FRect __fr_9 = toFRect(size);
+	SDL_RenderTexture(r, tex, NULL, &__fr_9);
 	SDL_DestroyTexture(tex);
-	SDL_FreeSurface(sur);
+	SDL_DestroySurface(sur);
 	return size;
 };
 
 void paintGradientRectV(SDL_Renderer *ren, SDL_Rect r, SDL_Color in, SDL_Color out)
 {
+	SDL_FColor fi = toFColor(in), fo = toFColor(out);
 	SDL_Vertex vert[] = {
-		{{r.x, r.y}, in},
-		{{r.x + r.w, r.y}, in},
-		{{r.x + r.w, r.y + r.h}, out},
-		{{r.x, r.y + r.h}, out},
+		{{(float)r.x, (float)r.y}, fi},
+		{{(float)(r.x + r.w), (float)r.y}, fi},
+		{{(float)(r.x + r.w), (float)(r.y + r.h)}, fo},
+		{{(float)r.x, (float)(r.y + r.h)}, fo},
 	};
 	int RectIndece[] = {0, 1, 2, 2, 3, 0};
 	SDL_RenderGeometry(ren, 0, vert, 4, RectIndece, sizeof(RectIndece) / sizeof(RectIndece[0]));
@@ -239,11 +249,12 @@ void paintGradientRectV(SDL_Renderer *ren, SDL_Rect r, SDL_Color in, SDL_Color o
 
 void paintGradientRectH(SDL_Renderer *ren, SDL_Rect r, SDL_Color in, SDL_Color out)
 {
+	SDL_FColor fi = toFColor(in), fo = toFColor(out);
 	SDL_Vertex vert[] = {
-		{{r.x, r.y}, in},
-		{{r.x + r.w, r.y}, out},
-		{{r.x + r.w, r.y + r.h}, out},
-		{{r.x, r.y + r.h}, in},
+		{{(float)r.x, (float)r.y}, fi},
+		{{(float)(r.x + r.w), (float)r.y}, fo},
+		{{(float)(r.x + r.w), (float)(r.y + r.h)}, fo},
+		{{(float)r.x, (float)(r.y + r.h)}, fi},
 	};
 	int RectIndece[] = {0, 1, 2, 2, 3, 0};
 	SDL_RenderGeometry(ren, 0, vert, 4, RectIndece, sizeof(RectIndece) / sizeof(RectIndece[0]));
@@ -251,88 +262,95 @@ void paintGradientRectH(SDL_Renderer *ren, SDL_Rect r, SDL_Color in, SDL_Color o
 
 void paintX(SDL_Renderer* render,SDL_Rect rct,SDL_Color color){
 	SDL_SetRenderDrawColor(render,ColorArg(color));
-	SDL_RenderDrawLine(render, rct.x, rct.y, rct.x + rct.w, rct.y + rct.h);
-	SDL_RenderDrawLine(render, rct.x + rct.w, rct.y, rct.x, rct.y + rct.h);
+	SDL_RenderLine(render, (float)rct.x, (float)rct.y, (float)(rct.x + rct.w), (float)(rct.y + rct.h));
+	SDL_RenderLine(render, (float)(rct.x + rct.w), (float)rct.y, (float)rct.x, (float)(rct.y + rct.h));
 }
 
 void paintAnnotation(SDL_Renderer *ren, SDL_Rect rect)
 {
 	SDL_SetRenderDrawColor(ren,255, 255, 238, 123);
-	SDL_RenderFillRect(ren,&rect);
+    SDL_FRect __fr_10 = toFRect(rect);
+	SDL_RenderFillRect(ren,&__fr_10);
 	SDL_SetRenderDrawColor(ren,255, 0, 0, 122);
-	SDL_RenderDrawRect(ren,&rect);
+    SDL_FRect __fr_11 = toFRect(rect);
+	SDL_RenderRect(ren,&__fr_11);
 	int
 		p1x = rect.x + rect.w - 7,
 		p1y = rect.y + rect.h - 4,
 		p2x = rect.x + rect.w - 4,
 		p2y = rect.y + rect.h - 7;
 	SDL_SetRenderDrawColor(ren, 68, 68, 68, 255);
-	SDL_RenderDrawLine(ren, p1x, p1y, p2x, p2y);
+	SDL_RenderLine(ren, (float)p1x, (float)p1y, (float)p2x, (float)p2y);
 	p1x--;
 	p2y--;
 	SDL_SetRenderDrawColor(ren, 237, 237, 230, 255);
-	SDL_RenderDrawLine(ren, p1x, p1y, p2x, p2y);
+	SDL_RenderLine(ren, (float)p1x, (float)p1y, (float)p2x, (float)p2y);
 	p1x--;
 	p2y--;
 	SDL_SetRenderDrawColor(ren, 68, 68, 68, 255);
-	SDL_RenderDrawLine(ren, p1x, p1y, p2x, p2y);
+	SDL_RenderLine(ren, (float)p1x, (float)p1y, (float)p2x, (float)p2y);
 	p1x--;
 	p2y--;
 	SDL_SetRenderDrawColor(ren, 237, 237, 230, 255);
-	SDL_RenderDrawLine(ren, p1x, p1y, p2x, p2y);
+	SDL_RenderLine(ren, (float)p1x, (float)p1y, (float)p2x, (float)p2y);
 	p1x--;
 	p2y--;
 	SDL_SetRenderDrawColor(ren, 68, 68, 68, 255);
-	SDL_RenderDrawLine(ren, p1x, p1y, p2x, p2y);
+	SDL_RenderLine(ren, (float)p1x, (float)p1y, (float)p2x, (float)p2y);
 	p1x--;
 	p2y--;
 	SDL_SetRenderDrawColor(ren, 237, 237, 230, 255);
-	SDL_RenderDrawLine(ren, p1x, p1y, p2x, p2y);
+	SDL_RenderLine(ren, (float)p1x, (float)p1y, (float)p2x, (float)p2y);
 	p1x--;
 	p2y--;
 	SDL_SetRenderDrawColor(ren, 68, 68, 68, 255);
-	SDL_RenderDrawLine(ren, p1x, p1y, p2x, p2y);
+	SDL_RenderLine(ren, (float)p1x, (float)p1y, (float)p2x, (float)p2y);
 	rect.x--;
 	rect.y--;
 	rect.w += 2;
 	rect.h += 2;
 	SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
-	SDL_RenderDrawRect(ren, &rect);
+    SDL_FRect __fr_12 = toFRect(rect);
+	SDL_RenderRect(ren, &__fr_12);
 }
 
 SDL_Rect paintOutRelief(SDL_Renderer* ren,SDL_Rect base){
 	SDL_SetRenderDrawColor(ren,192,192,192,255);
-    SDL_RenderFillRect(ren,&base);
+    SDL_FRect __fr_13 = toFRect(base);
+    SDL_RenderFillRect(ren,&__fr_13);
     SDL_SetRenderDrawColor(ren,0,0,0,255);
-    SDL_RenderDrawRect(ren,&base);
+    SDL_FRect __fr_14 = toFRect(base);
+    SDL_RenderRect(ren,&__fr_14);
 	base.w -= 3;
 	base.h -= 3;
 	base.x++;
 	base.y++;
 	SDL_SetRenderDrawColor(ren,255,255,255,255);
-	SDL_RenderDrawLine(ren,base.x,base.y,base.x + base.w,base.y);
-	SDL_RenderDrawLine(ren,base.x,base.y,base.x,base.y + base.h);
+	SDL_RenderLine(ren,(float)base.x,(float)base.y,(float)(base.x + base.w),(float)base.y);
+	SDL_RenderLine(ren,(float)base.x,(float)base.y,(float)base.x,(float)(base.y + base.h));
 	SDL_SetRenderDrawColor(ren,128,128,128,255);
-	SDL_RenderDrawLine(ren,base.x + base.w,base.y + base.h,base.x + base.w,base.y);
-	SDL_RenderDrawLine(ren,base.x + base.w,base.y + base.h,base.x,base.y + base.h);
+	SDL_RenderLine(ren,(float)(base.x + base.w),(float)(base.y + base.h),(float)(base.x + base.w),(float)base.y);
+	SDL_RenderLine(ren,(float)(base.x + base.w),(float)(base.y + base.h),(float)base.x,(float)(base.y + base.h));
 	SDL_SetRenderDrawColor(ren,192,192,192,255);
-	SDL_RenderDrawPoint(ren,base.x + base.w,base.y);
-	SDL_RenderDrawPoint(ren,base.x,base.y + base.h);
+	SDL_RenderPoint(ren,(float)(base.x + base.w),(float)base.y);
+	SDL_RenderPoint(ren,(float)base.x,(float)(base.y + base.h));
 	return base;
 }
 
 SDL_Rect paintInRelief(SDL_Renderer* ren,SDL_Rect base){
 	SDL_SetRenderDrawColor(ren,128,128,128,255);
-    SDL_RenderFillRect(ren,&base);
+    SDL_FRect __fr_15 = toFRect(base);
+    SDL_RenderFillRect(ren,&__fr_15);
     SDL_SetRenderDrawColor(ren,255,255,255,255);
-    SDL_RenderDrawRect(ren,&base);
+    SDL_FRect __fr_16 = toFRect(base);
+    SDL_RenderRect(ren,&__fr_16);
 	base.w -= 3;
 	base.h -= 3;
 	base.x++;
 	base.y++;
 	SDL_SetRenderDrawColor(ren,0,0,0,255);
-	SDL_RenderDrawLine(ren,base.x,base.y,base.x + base.w,base.y);
-	SDL_RenderDrawLine(ren,base.x,base.y,base.x,base.y + base.h);
+	SDL_RenderLine(ren,(float)base.x,(float)base.y,(float)(base.x + base.w),(float)base.y);
+	SDL_RenderLine(ren,(float)base.x,(float)base.y,(float)base.x,(float)(base.y + base.h));
 	return base;
 }
 
@@ -353,18 +371,23 @@ SDL_Rect paintCard(SDL_Renderer *r,SDL_Texture* obverse,SDL_Texture* reverse,SDL
 	after_flip.w = (double)rect.w * p;
 	if(after_flip.w > 0){
 		after_flip.x += (rect.w - after_flip.w) / 2;
-		SDL_RenderCopy(r,obverse,NULL,&after_flip);
+    SDL_FRect __fr_17 = toFRect(after_flip);
+		SDL_RenderTexture(r,obverse,NULL,&__fr_17);
 		SDL_SetRenderDrawColor(r,0,0,0,(1.0f - p) * 180.0f);
-		SDL_RenderFillRect(r,&after_flip);
+    SDL_FRect __fr_18 = toFRect(after_flip);
+		SDL_RenderFillRect(r,&__fr_18);
 	}else{
 		after_flip.w = -after_flip.w;
 		after_flip.x += (rect.w - after_flip.w) / 2;
-		SDL_RenderCopy(r,reverse,NULL,&after_flip);
+    SDL_FRect __fr_19 = toFRect(after_flip);
+		SDL_RenderTexture(r,reverse,NULL,&__fr_19);
 		SDL_SetRenderDrawColor(r,0,0,0,(1.0f + p) * 180.0f);
-		SDL_RenderFillRect(r,&after_flip);
+    SDL_FRect __fr_20 = toFRect(after_flip);
+		SDL_RenderFillRect(r,&__fr_20);
 	}
 	SDL_SetRenderDrawColor(r,color_edge.r,color_edge.g,color_edge.b,color_edge.a);
-	SDL_RenderDrawRect(r,&after_flip);
+    SDL_FRect __fr_21 = toFRect(after_flip);
+	SDL_RenderRect(r,&__fr_21);
 	return after_flip;
 }
 
@@ -422,10 +445,11 @@ SDL_Rect paintStereoCard(SDL_Renderer *r,SDL_Texture* obverse,SDL_Texture* rever
 }
 
 void paintFilledTriangle(SDL_Renderer* ren,const SDL_Point& point1,const SDL_Point& point2,const SDL_Point& point3,SDL_Color color){
+	SDL_FColor fc = toFColor(color);
 	const SDL_Vertex vertexs[3] = {
-		{{point1.x,point1.y},color},
-		{{point2.x,point2.y},color},
-		{{point3.x,point3.y},color},
+		{{(float)point1.x,(float)point1.y},fc},
+		{{(float)point2.x,(float)point2.y},fc},
+		{{(float)point3.x,(float)point3.y},fc},
 	};
 	SDL_RenderGeometry(ren,NULL,vertexs,3,NULL,0);
 }
@@ -455,8 +479,8 @@ static void fillCircleScanline(SDL_Renderer* renderer, int cx, int cy, int r) {
 	int x = r;
 	for (int y = 0; y <= r; ++y) {
 		while (x > 0 && x * x + y * y > r * r) --x;
-		SDL_RenderDrawLine(renderer, cx - x, cy + y, cx + x, cy + y);
-		if (y > 0) SDL_RenderDrawLine(renderer, cx - x, cy - y, cx + x, cy - y);
+		SDL_RenderLine(renderer, (float)(cx - x), (float)(cy + y), (float)(cx + x), (float)(cy + y));
+		if (y > 0) SDL_RenderLine(renderer, (float)(cx - x), (float)(cy - y), (float)(cx + x), (float)(cy - y));
 	}
 }
 
@@ -466,10 +490,10 @@ static void fillQuarterCircle(SDL_Renderer* renderer, int cx, int cy, int r, int
 	for (int y = 0; y <= r; ++y) {
 		while (x > 0 && x * x + y * y > r * r) --x;
 		switch (quadrant) {
-			case 1: SDL_RenderDrawLine(renderer, cx - x, cy - y, cx, cy - y); break;
-			case 2: SDL_RenderDrawLine(renderer, cx, cy - y, cx + x, cy - y); break;
-			case 3: SDL_RenderDrawLine(renderer, cx - x, cy + y, cx, cy + y); break;
-			case 4: SDL_RenderDrawLine(renderer, cx, cy + y, cx + x, cy + y); break;
+			case 1: SDL_RenderLine(renderer, (float)(cx - x), (float)(cy - y), (float)cx, (float)(cy - y)); break;
+			case 2: SDL_RenderLine(renderer, (float)cx, (float)(cy - y), (float)(cx + x), (float)(cy - y)); break;
+			case 3: SDL_RenderLine(renderer, (float)(cx - x), (float)(cy + y), (float)cx, (float)(cy + y)); break;
+			case 4: SDL_RenderLine(renderer, (float)cx, (float)(cy + y), (float)(cx + x), (float)(cy + y)); break;
 		}
 	}
 }
@@ -481,15 +505,15 @@ void paintCircle(SDL_Renderer* renderer, SDL_Color color, SDL_Point center, int 
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 	std::vector<SDL_Point> q1;
 	arcQuadrant1(radius, q1);
-	std::vector<SDL_Point> pts;
+	std::vector<SDL_FPoint> pts;
 	pts.reserve(q1.size() * 4);
 	for (auto& p : q1) {
-		pts.push_back({center.x + p.x, center.y - p.y}); // 右上
-		pts.push_back({center.x - p.x, center.y - p.y}); // 左上
-		pts.push_back({center.x + p.x, center.y + p.y}); // 右下
-		pts.push_back({center.x - p.x, center.y + p.y}); // 左下
+		pts.push_back({(float)(center.x + p.x), (float)(center.y - p.y)}); // 右上
+		pts.push_back({(float)(center.x - p.x), (float)(center.y - p.y)}); // 左上
+		pts.push_back({(float)(center.x + p.x), (float)(center.y + p.y)}); // 右下
+		pts.push_back({(float)(center.x - p.x), (float)(center.y + p.y)}); // 左下
 	}
-	SDL_RenderDrawPoints(renderer, pts.data(), static_cast<int>(pts.size()));
+	SDL_RenderPoints(renderer, pts.data(), static_cast<int>(pts.size()));
 }
 
 #define PCIRCLE_TOPLEFT 1
@@ -515,16 +539,16 @@ void paintCircleEx(SDL_Renderer* renderer, SDL_Color edge_color, SDL_Color fill_
 	// 边缘弧（flags 控制显示哪些象限）
 	std::vector<SDL_Point> q1;
 	arcQuadrant1(radius, q1);
-	std::vector<SDL_Point> pts;
+	std::vector<SDL_FPoint> pts;
 	pts.reserve(q1.size() * 4);
 	for (auto& p : q1) {
-		if (flags & PCIRCLE_TOPLEFT)     pts.push_back({center.x - p.x, center.y - p.y});
-		if (flags & PCIRCLE_TOPRIGHT)    pts.push_back({center.x + p.x, center.y - p.y});
-		if (flags & PCIRCLE_BOTTOMLEFT)  pts.push_back({center.x - p.x, center.y + p.y});
-		if (flags & PCIRCLE_BOTTOMRIGHT) pts.push_back({center.x + p.x, center.y + p.y});
+		if (flags & PCIRCLE_TOPLEFT)     pts.push_back({(float)(center.x - p.x), (float)(center.y - p.y)});
+		if (flags & PCIRCLE_TOPRIGHT)    pts.push_back({(float)(center.x + p.x), (float)(center.y - p.y)});
+		if (flags & PCIRCLE_BOTTOMLEFT)  pts.push_back({(float)(center.x - p.x), (float)(center.y + p.y)});
+		if (flags & PCIRCLE_BOTTOMRIGHT) pts.push_back({(float)(center.x + p.x), (float)(center.y + p.y)});
 	}
 	SDL_SetRenderDrawColor(renderer, edge_color.r, edge_color.g, edge_color.b, edge_color.a);
-	SDL_RenderDrawPoints(renderer, pts.data(), static_cast<int>(pts.size()));
+	SDL_RenderPoints(renderer, pts.data(), static_cast<int>(pts.size()));
 }
 
 void paintRoundedRect(SDL_Renderer* renderer, SDL_Rect rect, SDL_Color edge_color, SDL_Color fill_color, int radius) {
@@ -533,9 +557,11 @@ void paintRoundedRect(SDL_Renderer* renderer, SDL_Rect rect, SDL_Color edge_colo
 	radius = std::min(std::min(rect.w, rect.h) / 2, radius);
 	if (radius <= 0) {
 		SDL_SetRenderDrawColor(renderer, ColorArg(fill_color));
-		SDL_RenderFillRect(renderer, &rect);
+    SDL_FRect __fr_22 = toFRect(rect);
+		SDL_RenderFillRect(renderer, &__fr_22);
 		SDL_SetRenderDrawColor(renderer, ColorArg(edge_color));
-		SDL_RenderDrawRect(renderer, &rect);
+    SDL_FRect __fr_23 = toFRect(rect);
+		SDL_RenderRect(renderer, &__fr_23);
 		return;
 	}
 
@@ -548,9 +574,11 @@ void paintRoundedRect(SDL_Renderer* renderer, SDL_Rect rect, SDL_Color edge_colo
 	// 填充：中部十字矩形 + 四角 1/4 圆
 	SDL_SetRenderDrawColor(renderer, fill_color.r, fill_color.g, fill_color.b, fill_color.a);
 	SDL_Rect mid = {rx + radius, ry, rw - 2 * radius, rh};
-	SDL_RenderFillRect(renderer, &mid);
+    SDL_FRect __fr_24 = toFRect(mid);
+	SDL_RenderFillRect(renderer, &__fr_24);
 	mid = {rx, ry + radius, rw, rh - 2 * radius};
-	SDL_RenderFillRect(renderer, &mid);
+    SDL_FRect __fr_25 = toFRect(mid);
+	SDL_RenderFillRect(renderer, &__fr_25);
 	fillQuarterCircle(renderer, c_tl_x, c_tl_y, radius, 1);
 	fillQuarterCircle(renderer, c_tr_x, c_tr_y, radius, 2);
 	fillQuarterCircle(renderer, c_bl_x, c_bl_y, radius, 3);
@@ -558,22 +586,22 @@ void paintRoundedRect(SDL_Renderer* renderer, SDL_Rect rect, SDL_Color edge_colo
 
 	// 边缘：四条直线 + 四角圆弧
 	SDL_SetRenderDrawColor(renderer, edge_color.r, edge_color.g, edge_color.b, edge_color.a);
-	SDL_RenderDrawLine(renderer, c_tl_x, ry, c_tr_x, ry);
-	SDL_RenderDrawLine(renderer, c_bl_x, ry + rh, c_br_x, ry + rh);
-	SDL_RenderDrawLine(renderer, rx, c_tl_y, rx, c_bl_y);
-	SDL_RenderDrawLine(renderer, rx + rw, c_tr_y, rx + rw, c_br_y);
+	SDL_RenderLine(renderer, (float)c_tl_x, (float)ry, (float)c_tr_x, (float)ry);
+	SDL_RenderLine(renderer, (float)c_bl_x, (float)(ry + rh), (float)c_br_x, (float)(ry + rh));
+	SDL_RenderLine(renderer, (float)rx, (float)c_tl_y, (float)rx, (float)c_bl_y);
+	SDL_RenderLine(renderer, (float)(rx + rw), (float)c_tr_y, (float)(rx + rw), (float)c_br_y);
 
 	std::vector<SDL_Point> q1;
 	arcQuadrant1(radius, q1);
-	std::vector<SDL_Point> pts;
+	std::vector<SDL_FPoint> pts;
 	pts.reserve(q1.size() * 4);
 	for (auto& p : q1) {
-		pts.push_back({c_br_x + p.x, c_br_y + p.y}); // 右下
-		pts.push_back({c_tl_x - p.x, c_tl_y - p.y}); // 左上
-		pts.push_back({c_tr_x + p.x, c_tr_y - p.y}); // 右上
-		pts.push_back({c_bl_x - p.x, c_bl_y + p.y}); // 左下
+		pts.push_back({(float)(c_br_x + p.x), (float)(c_br_y + p.y)}); // 右下
+		pts.push_back({(float)(c_tl_x - p.x), (float)(c_tl_y - p.y)}); // 左上
+		pts.push_back({(float)(c_tr_x + p.x), (float)(c_tr_y - p.y)}); // 右上
+		pts.push_back({(float)(c_bl_x - p.x), (float)(c_bl_y + p.y)}); // 左下
 	}
-	SDL_RenderDrawPoints(renderer, pts.data(), static_cast<int>(pts.size()));
+	SDL_RenderPoints(renderer, pts.data(), static_cast<int>(pts.size()));
 }
 
 void paintFilledCircle(SDL_Renderer* renderer, SDL_Color color, SDL_Point center, float radius) {
@@ -597,11 +625,11 @@ void paintEllipse(SDL_Renderer* renderer, const SDL_Rect& rect,
         for (int y = -radiusY; y <= radiusY; y++) {
             int width = (int)(radiusX * sqrt(1 - (y * y) / (float)(radiusY * radiusY)));
             
-            SDL_RenderDrawLine(renderer, 
-                              centerX - width, 
-                              centerY + y, 
-                              centerX + width, 
-                              centerY + y);
+            SDL_RenderLine(renderer, 
+                          (float)(centerX - width), 
+                          (float)(centerY + y), 
+                          (float)(centerX + width), 
+                          (float)(centerY + y));
         }
     }
     
@@ -630,10 +658,10 @@ void paintEllipse(SDL_Renderer* renderer, const SDL_Rect& rect,
                 p += radiusY2 + px - py;
             }
             
-            SDL_RenderDrawPoint(renderer, centerX + x, centerY + y);
-            SDL_RenderDrawPoint(renderer, centerX - x, centerY + y);
-            SDL_RenderDrawPoint(renderer, centerX + x, centerY - y);
-            SDL_RenderDrawPoint(renderer, centerX - x, centerY - y);
+            SDL_RenderPoint(renderer, (float)(centerX + x), (float)(centerY + y));
+            SDL_RenderPoint(renderer, (float)(centerX - x), (float)(centerY + y));
+            SDL_RenderPoint(renderer, (float)(centerX + x), (float)(centerY - y));
+            SDL_RenderPoint(renderer, (float)(centerX - x), (float)(centerY - y));
         }
         
         p = (int)(radiusY2 * (x + 0.5) * (x + 0.5) + radiusX2 * (y - 1) * (y - 1) - radiusX2 * radiusY2);
@@ -648,10 +676,10 @@ void paintEllipse(SDL_Renderer* renderer, const SDL_Rect& rect,
                 p += radiusX2 - py + px;
             }
             
-            SDL_RenderDrawPoint(renderer, centerX + x, centerY + y);
-            SDL_RenderDrawPoint(renderer, centerX - x, centerY + y);
-            SDL_RenderDrawPoint(renderer, centerX + x, centerY - y);
-            SDL_RenderDrawPoint(renderer, centerX - x, centerY - y);
+            SDL_RenderPoint(renderer, (float)(centerX + x), (float)(centerY + y));
+            SDL_RenderPoint(renderer, (float)(centerX - x), (float)(centerY + y));
+            SDL_RenderPoint(renderer, (float)(centerX + x), (float)(centerY - y));
+            SDL_RenderPoint(renderer, (float)(centerX - x), (float)(centerY - y));
         }
     }
 }
@@ -684,7 +712,7 @@ void paintHatchingLines(SDL_Renderer *renderer, SDL_Color color, SDL_Rect rect, 
 				x2 = left + (y2 - bottom) + 1;
 				y2 = bottom - 1;
 			}
-			SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+			SDL_RenderLine(renderer, (float)x1, (float)y1, (float)x2, (float)y2);
 			i++;
 		}
 	}
@@ -693,7 +721,7 @@ void paintHatchingLines(SDL_Renderer *renderer, SDL_Color color, SDL_Rect rect, 
 void paintColorTable(SDL_Renderer* renderer, SDL_Rect rect) {
     if (rect.w <= 0 || rect.h <= 0) return;
 
-    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, rect.w, rect.h, 32, SDL_PIXELFORMAT_RGBA32);
+    SDL_Surface* surface = SDL_CreateSurface(rect.w, rect.h, SDL_PIXELFORMAT_RGBA32);
     if (!surface) return;
 
     // 锁定surface
@@ -721,7 +749,7 @@ void paintColorTable(SDL_Renderer* renderer, SDL_Rect rect) {
             HSVtoRGB(H, S, 1.0f, r, g, b);
 
             SDL_Color color = { r, g, b, 255 };
-            Uint32 pixel = SDL_MapRGBA(surface->format, color.r, color.g, color.b, color.a);
+            Uint32 pixel = SDL_MapSurfaceRGBA(surface, color.r, color.g, color.b, color.a);
 
             Uint8* row = (Uint8*)surface->pixels + y * surface->pitch;
             Uint32* pixelPtr = (Uint32*)row + x;
@@ -734,23 +762,23 @@ void paintColorTable(SDL_Renderer* renderer, SDL_Rect rect) {
     }
 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-    SDL_FreeSurface(surface);
+    SDL_DestroySurface(surface);
     if (!texture) return;
 
     SDL_Rect oldViewport;
-    SDL_RenderGetViewport(renderer, &oldViewport);
+    SDL_GetRenderViewport(renderer, &oldViewport);
 
-    SDL_RenderSetViewport(renderer, &rect);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_SetRenderViewport(renderer, &rect);
+    SDL_RenderTexture(renderer, texture, NULL, NULL);
 
-    SDL_RenderSetViewport(renderer, &oldViewport);
+    SDL_SetRenderViewport(renderer, &oldViewport);
     SDL_DestroyTexture(texture);
 }
 
 void paintValueTable(SDL_Renderer* renderer,float H,float S, SDL_Rect rect) {
     if (rect.w <= 0 || rect.h <= 0) return;
 
-    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, rect.w, rect.h, 32, SDL_PIXELFORMAT_RGBA32);
+    SDL_Surface* surface = SDL_CreateSurface(rect.w, rect.h, SDL_PIXELFORMAT_RGBA32);
     if (!surface) return;
 
     // 锁定surface
@@ -764,7 +792,7 @@ void paintValueTable(SDL_Renderer* renderer,float H,float S, SDL_Rect rect) {
         HSVtoRGB(H, S, V, r, g, b);
 
         SDL_Color color = { r, g, b, 255 };
-        Uint32 pixel = SDL_MapRGBA(surface->format, color.r, color.g, color.b, color.a);
+        Uint32 pixel = SDL_MapSurfaceRGBA(surface, color.r, color.g, color.b, color.a);
 
         for (int x = 0; x < rect.w; ++x) {
             Uint8* row = (Uint8*)surface->pixels + y * surface->pitch;
@@ -778,16 +806,16 @@ void paintValueTable(SDL_Renderer* renderer,float H,float S, SDL_Rect rect) {
     }
 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-    SDL_FreeSurface(surface);
+    SDL_DestroySurface(surface);
     if (!texture) return;
 
     SDL_Rect oldViewport;
-    SDL_RenderGetViewport(renderer, &oldViewport);
+    SDL_GetRenderViewport(renderer, &oldViewport);
 
-    SDL_RenderSetViewport(renderer, &rect);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_SetRenderViewport(renderer, &rect);
+    SDL_RenderTexture(renderer, texture, NULL, NULL);
 
-    SDL_RenderSetViewport(renderer, &oldViewport);
+    SDL_SetRenderViewport(renderer, &oldViewport);
     SDL_DestroyTexture(texture);
 }
 
@@ -808,7 +836,8 @@ void paintTransparency(SDL_Renderer* renderer,int x,int y,int side_length,int cw
 			}else{
 				SDL_SetRenderDrawColor(renderer,122,122,122,255);
 			}
-			SDL_RenderFillRect(renderer,&sqare);
+    SDL_FRect __fr_26 = toFRect(sqare);
+			SDL_RenderFillRect(renderer,&__fr_26);
 			temp_x++;
 		}
 		temp_x = 0;
@@ -819,31 +848,33 @@ void paintTransparency(SDL_Renderer* renderer,int x,int y,int side_length,int cw
 void paintSpeechBubble(SDL_Renderer* renderer, SDL_Rect rect, SDL_Color fill_color, SDL_Color edge_color, int direction/* 1up 2right 3down 4left */) {
     
     SDL_SetRenderDrawColor(renderer, fill_color.r, fill_color.g, fill_color.b, fill_color.a);
-    SDL_RenderFillRect(renderer, &rect);
+    SDL_FRect __fr_27 = toFRect(rect);
+    SDL_RenderFillRect(renderer, &__fr_27);
     
     SDL_Vertex vertices[3];
     int triangle_size = 10;
+    SDL_FColor f_fill = toFColor(fill_color);
     
     switch (direction) {
         case 1: // 向上
-            vertices[0] = { {float(rect.x + rect.w / 2) + 1, float(rect.y - triangle_size)}, fill_color, {1,1} };
-            vertices[1] = { {float(rect.x + rect.w / 2 - triangle_size) + 1, float(rect.y)}, fill_color, {1,1} };
-            vertices[2] = { {float(rect.x + rect.w / 2 + triangle_size) + 1, float(rect.y)}, fill_color, {1,1} };
+            vertices[0] = { {float(rect.x + rect.w / 2) + 1, float(rect.y - triangle_size)}, f_fill, {1,1} };
+            vertices[1] = { {float(rect.x + rect.w / 2 - triangle_size) + 1, float(rect.y)}, f_fill, {1,1} };
+            vertices[2] = { {float(rect.x + rect.w / 2 + triangle_size) + 1, float(rect.y)}, f_fill, {1,1} };
             break;
         case 2: // 向右
-            vertices[0] = { {float(rect.x + rect.w + triangle_size), float(rect.y + rect.h / 2)}, fill_color, {1,1} };
-            vertices[1] = { {float(rect.x + rect.w), float(rect.y + rect.h / 2 - triangle_size)}, fill_color, {1,1} };
-            vertices[2] = { {float(rect.x + rect.w), float(rect.y + rect.h / 2 + triangle_size)}, fill_color, {1,1} };
+            vertices[0] = { {float(rect.x + rect.w + triangle_size), float(rect.y + rect.h / 2)}, f_fill, {1,1} };
+            vertices[1] = { {float(rect.x + rect.w), float(rect.y + rect.h / 2 - triangle_size)}, f_fill, {1,1} };
+            vertices[2] = { {float(rect.x + rect.w), float(rect.y + rect.h / 2 + triangle_size)}, f_fill, {1,1} };
             break;
         case 3: // 向下
-            vertices[0] = { {float(rect.x + rect.w / 2) + 1, float(rect.y + rect.h + triangle_size)}, fill_color, {1,1} };
-            vertices[1] = { {float(rect.x + rect.w / 2 - triangle_size) + 1, float(rect.y + rect.h)}, fill_color, {1,1} };
-            vertices[2] = { {float(rect.x + rect.w / 2 + triangle_size) + 1, float(rect.y + rect.h)}, fill_color, {1,1} };
+            vertices[0] = { {float(rect.x + rect.w / 2) + 1, float(rect.y + rect.h + triangle_size)}, f_fill, {1,1} };
+            vertices[1] = { {float(rect.x + rect.w / 2 - triangle_size) + 1, float(rect.y + rect.h)}, f_fill, {1,1} };
+            vertices[2] = { {float(rect.x + rect.w / 2 + triangle_size) + 1, float(rect.y + rect.h)}, f_fill, {1,1} };
             break;
         case 4: // 向左
-            vertices[0] = { {float(rect.x - triangle_size), float(rect.y + rect.h / 2)}, fill_color, {1,1} };
-            vertices[1] = { {float(rect.x), float(rect.y + rect.h / 2 - triangle_size)}, fill_color, {1,1} };
-            vertices[2] = { {float(rect.x), float(rect.y + rect.h / 2 + triangle_size)}, fill_color, {1,1} };
+            vertices[0] = { {float(rect.x - triangle_size), float(rect.y + rect.h / 2)}, f_fill, {1,1} };
+            vertices[1] = { {float(rect.x), float(rect.y + rect.h / 2 - triangle_size)}, f_fill, {1,1} };
+            vertices[2] = { {float(rect.x), float(rect.y + rect.h / 2 + triangle_size)}, f_fill, {1,1} };
             break;
     }
     
@@ -854,80 +885,80 @@ void paintSpeechBubble(SDL_Renderer* renderer, SDL_Rect rect, SDL_Color fill_col
     switch (direction) {
         case 1:
             // 下边
-            SDL_RenderDrawLine(renderer, rect.x, rect.y + rect.h, rect.x + rect.w, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x, rect.y + rect.h, rect.x + rect.w, rect.y + rect.h);
             // 左边（上半部分）
-            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x, rect.y, rect.x, rect.y + rect.h);
             // 右边（上半部分）
-            SDL_RenderDrawLine(renderer, rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h);
             // 上边分开两段
-            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x + rect.w / 2 - triangle_size, rect.y);
-            SDL_RenderDrawLine(renderer, rect.x + rect.w / 2 + triangle_size, rect.y, rect.x + rect.w, rect.y);
+            SDL_RenderLine(renderer, rect.x, rect.y, rect.x + rect.w / 2 - triangle_size, rect.y);
+            SDL_RenderLine(renderer, rect.x + rect.w / 2 + triangle_size, rect.y, rect.x + rect.w, rect.y);
             break;
         case 2:
             // 上边
-            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x + rect.w, rect.y);
+            SDL_RenderLine(renderer, rect.x, rect.y, rect.x + rect.w, rect.y);
             // 下边
-            SDL_RenderDrawLine(renderer, rect.x, rect.y + rect.h, rect.x + rect.w, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x, rect.y + rect.h, rect.x + rect.w, rect.y + rect.h);
             // 左边
-            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x, rect.y, rect.x, rect.y + rect.h);
             // 右边分开两段
-            SDL_RenderDrawLine(renderer, rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h / 2 - triangle_size);
-            SDL_RenderDrawLine(renderer, rect.x + rect.w, rect.y + rect.h / 2 + triangle_size, rect.x + rect.w, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h / 2 - triangle_size);
+            SDL_RenderLine(renderer, rect.x + rect.w, rect.y + rect.h / 2 + triangle_size, rect.x + rect.w, rect.y + rect.h);
             break;
         case 3:
             // 上边
-            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x + rect.w, rect.y);
+            SDL_RenderLine(renderer, rect.x, rect.y, rect.x + rect.w, rect.y);
             // 左边（下半部分）
-            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x, rect.y, rect.x, rect.y + rect.h);
             // 右边（下半部分）
-            SDL_RenderDrawLine(renderer, rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h);
             // 下边分开两段
-            SDL_RenderDrawLine(renderer, rect.x, rect.y + rect.h, rect.x + rect.w / 2 - triangle_size, rect.y + rect.h);
-            SDL_RenderDrawLine(renderer, rect.x + rect.w / 2 + triangle_size, rect.y + rect.h, rect.x + rect.w, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x, rect.y + rect.h, rect.x + rect.w / 2 - triangle_size, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x + rect.w / 2 + triangle_size, rect.y + rect.h, rect.x + rect.w, rect.y + rect.h);
             break;
         case 4:
             // 上边
-            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x + rect.w, rect.y);
+            SDL_RenderLine(renderer, rect.x, rect.y, rect.x + rect.w, rect.y);
             // 下边
-            SDL_RenderDrawLine(renderer, rect.x, rect.y + rect.h, rect.x + rect.w, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x, rect.y + rect.h, rect.x + rect.w, rect.y + rect.h);
             // 右边
-            SDL_RenderDrawLine(renderer, rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + rect.h);
             // 左边分开两段
-            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x, rect.y + rect.h / 2 - triangle_size);
-            SDL_RenderDrawLine(renderer, rect.x, rect.y + rect.h / 2 + triangle_size, rect.x, rect.y + rect.h);
+            SDL_RenderLine(renderer, rect.x, rect.y, rect.x, rect.y + rect.h / 2 - triangle_size);
+            SDL_RenderLine(renderer, rect.x, rect.y + rect.h / 2 + triangle_size, rect.x, rect.y + rect.h);
             break;
     }
     
     switch (direction) {
         case 1: // 向上
-            SDL_RenderDrawLine(renderer, 
+            SDL_RenderLine(renderer, 
                 rect.x + rect.w / 2 - triangle_size, rect.y, 
                 rect.x + rect.w / 2, rect.y - triangle_size);
-            SDL_RenderDrawLine(renderer, 
+            SDL_RenderLine(renderer, 
                 rect.x + rect.w / 2, rect.y - triangle_size, 
                 rect.x + rect.w / 2 + triangle_size, rect.y);
             break;
         case 2: // 向右
-            SDL_RenderDrawLine(renderer, 
+            SDL_RenderLine(renderer, 
                 rect.x + rect.w, rect.y + rect.h / 2 - triangle_size - 1, 
                 rect.x + rect.w + triangle_size, rect.y + rect.h / 2 - 1);
-            SDL_RenderDrawLine(renderer, 
+            SDL_RenderLine(renderer, 
                 rect.x + rect.w + triangle_size, rect.y + rect.h / 2 - 1, 
                 rect.x + rect.w, rect.y + rect.h / 2 + triangle_size - 1);
             break;
         case 3: // 向下
-            SDL_RenderDrawLine(renderer, 
+            SDL_RenderLine(renderer, 
                 rect.x + rect.w / 2 - triangle_size, rect.y + rect.h, 
                 rect.x + rect.w / 2, rect.y + rect.h + triangle_size);
-            SDL_RenderDrawLine(renderer, 
+            SDL_RenderLine(renderer, 
                 rect.x + rect.w / 2, rect.y + rect.h + triangle_size, 
                 rect.x + rect.w / 2 + triangle_size, rect.y + rect.h);
             break;
         case 4: // 向左
-            SDL_RenderDrawLine(renderer, 
+            SDL_RenderLine(renderer, 
                 rect.x, rect.y + rect.h / 2 - triangle_size - 1, 
                 rect.x - triangle_size, rect.y + rect.h / 2 - 1);
-            SDL_RenderDrawLine(renderer, 
+            SDL_RenderLine(renderer, 
                 rect.x - triangle_size, rect.y + rect.h / 2 + 1, 
                 rect.x, rect.y + rect.h / 2 + triangle_size + 1);
             break;
@@ -941,7 +972,10 @@ void paintWritingLines(SDL_Renderer *renderer, const SDL_Point *points, int coun
     }
     
     if (process >= 1.0) {
-        SDL_RenderDrawLines(renderer, points, count);
+        std::vector<SDL_FPoint> fpts;
+        fpts.reserve(count);
+        for(int i = 0; i < count; ++i) fpts.push_back({(float)points[i].x, (float)points[i].y});
+        SDL_RenderLines(renderer, fpts.data(), count);
         return;
     }
 
@@ -981,13 +1015,19 @@ void paintWritingLines(SDL_Renderer *renderer, const SDL_Point *points, int coun
             end.y = static_cast<int>(points[i].y + dy * t);
             drawPoints.push_back(end);
             
-            SDL_RenderDrawLines(renderer, drawPoints.data(), static_cast<int>(drawPoints.size()));
+            std::vector<SDL_FPoint> fpts;
+            fpts.reserve(drawPoints.size());
+            for(auto& p : drawPoints) fpts.push_back({(float)p.x, (float)p.y});
+            SDL_RenderLines(renderer, fpts.data(), static_cast<int>(fpts.size()));
             return;
         }
     }
 
     if (drawPoints.size() > 1) {
-        SDL_RenderDrawLines(renderer, drawPoints.data(), static_cast<int>(drawPoints.size()));
+        std::vector<SDL_FPoint> fpts;
+        fpts.reserve(drawPoints.size());
+        for(auto& p : drawPoints) fpts.push_back({(float)p.x, (float)p.y});
+        SDL_RenderLines(renderer, fpts.data(), static_cast<int>(fpts.size()));
     }
 }
 
@@ -1029,8 +1069,8 @@ class TooltipWindow{
 		th_shared_data = std::make_shared<SharedData>();
 		th_shared_data->callback_func = _callback_func;
         std::thread _th([shared_data = th_shared_data](){
-			shared_data->window = SDL_CreateWindow("Tooltip",SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,10,10,SDL_WINDOW_HIDDEN | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_TOOLTIP | SDL_WINDOW_SKIP_TASKBAR | SDL_WINDOW_BORDERLESS);
-			shared_data->renderer = SDL_CreateRenderer(shared_data->window,-1,SDL_RENDERER_TARGETTEXTURE);
+			shared_data->window = SDL_CreateWindow("Tooltip",10,10,SDL_WINDOW_HIDDEN | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_TOOLTIP | SDL_WINDOW_UTILITY | SDL_WINDOW_BORDERLESS);
+			shared_data->renderer = SDL_CreateRenderer(shared_data->window,NULL);
 
 			shared_data->callback_func(shared_data->window,shared_data->renderer,TOOLTIP_CALLBACK_INIT);
 			while(shared_data->running_state){
@@ -1059,12 +1099,9 @@ class TooltipWindow{
 	}
 };
 
-#include <SDL_syswm.h>
+// SDL3 移除了 SDL_syswm.h / SDL_GetWindowWMInfo，HWND 通过窗口属性获取
 HWND SDL_GetWindowHWND(SDL_Window* win){
-    SDL_SysWMinfo info;
-    SDL_VERSION(&info.version);
-    SDL_GetWindowWMInfo(win,&info);
-    return info.info.win.window;
+    return (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(win), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
 }
 
 /**
@@ -1200,11 +1237,11 @@ public:
      */
     static float GetDpiScaleOf(SDL_Renderer* renderer){
         if(!renderer) return 1.0f;
-        SDL_Window* w = SDL_RenderGetWindow(renderer);
+        SDL_Window* w = SDL_GetRenderWindow(renderer);
         if(!w) return 1.0f;
         int wl = 0, hl = 0, wp = 0, hp = 0;
         SDL_GetWindowSize(w, &wl, &hl);
-        SDL_GetRendererOutputSize(renderer, &wp, &hp);
+        SDL_GetRenderOutputSize(renderer, &wp, &hp);
         float s = 1.0f;
         if(wl > 0 && wp > 0) s = (float)wp / (float)wl;
         if(hl > 0 && hp > 0) s = std::max(s, (float)hp / (float)hl);
@@ -1223,7 +1260,7 @@ public:
      */
     bool Open(SDL_Renderer* parent_renderer, int screen_x, int screen_y, int w, int h){
         if(!parent_renderer) return false;
-        SDL_Window* parent = SDL_RenderGetWindow(parent_renderer);
+        SDL_Window* parent = SDL_GetRenderWindow(parent_renderer);
         if(!parent) return false;
 
         // 计算 DPI 缩放：SDL 逻辑坐标 -> 物理像素
@@ -1231,8 +1268,8 @@ public:
 
         if(!sdl_window){
             // 注意：不用 SDL_WINDOW_TOOLTIP（在部分环境会造成点击穿透/收不到鼠标），用 WS_EX_TOOLWINDOW 样式代替
-            sdl_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h,
-                SDL_WINDOW_BORDERLESS | SDL_WINDOW_SKIP_TASKBAR | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIDDEN);
+            sdl_window = SDL_CreateWindow("", w, h,
+                SDL_WINDOW_BORDERLESS | SDL_WINDOW_UTILITY | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIDDEN);
             if(!sdl_window) return false;
 
             hwnd = SDL_GetWindowHWND(sdl_window);
@@ -1242,8 +1279,7 @@ public:
                 return false;
             }
 
-            // 软件渲染器对弹出窗口的兼容性最好
-            renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_SOFTWARE);
+            renderer = SDL_CreateRenderer(sdl_window, NULL);
             if(!renderer){
                 SDL_DestroyWindow(sdl_window);
                 sdl_window = nullptr;
@@ -1273,7 +1309,7 @@ public:
                 SWP_NOACTIVATE);
         }
         // 渲染逻辑坐标空间与父窗口保持一致（物理输出自动按 DPI 缩放）
-        if(renderer) SDL_RenderSetLogicalSize(renderer, w, h);
+        if(renderer) SDL_SetRenderLogicalPresentation(renderer, w, h, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
         // 鼠标坐标 -> 逻辑坐标换算比例（物理客户区 -> 逻辑渲染空间）
         UpdateRenderScale();

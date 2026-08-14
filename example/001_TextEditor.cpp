@@ -25,7 +25,8 @@
 #include "decode.hpp"
 #define DefaultColorKit ColorKitPresets::Ocean
 #include "Fgui\Fgui.hpp"
-#include "SDLWindowStuff.hpp"
+#define SDL_WINDOWIM_IMPLEMENTATION
+#include "SDL_WindowIM.hpp"
 #include "SDL_EventPlus.hpp"
 #include "GL_Commdlg.hpp"
 
@@ -72,7 +73,8 @@ public:
 
         // 背景（略深于编辑区，与滚动条同色系）
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColorDarker));
-        SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_1 = toFRect(draw_area);
+        SDL_RenderFillRect(renderer, &__fr_1);
 
         if(font && editor){
             int cam_y = editor->GetScrollY();
@@ -93,8 +95,8 @@ public:
 
         // 右侧分隔线
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-        SDL_RenderDrawLine(renderer, draw_area.x + draw_area.w - 1, draw_area.y,
-                           draw_area.x + draw_area.w - 1, draw_area.y + draw_area.h);
+        SDL_RenderLine(renderer, (float)(draw_area.x + draw_area.w - 1), (float)draw_area.y,
+                           (float)(draw_area.x + draw_area.w - 1), (float)(draw_area.y + draw_area.h));
     }
 
     void ActionOnEvent(const SDL_Event*, const SDL_Rect&) override{
@@ -147,7 +149,8 @@ static std::vector<std::shared_ptr<ComboBox>> g_menus;    // 菜单（ComboBox �
 static std::shared_ptr<ControlBox>        g_cb;           // 根容器
 static std::vector<int>                   g_menu_natural_w; // 菜单自然宽度
 
-static SDLWindowStuff* g_sws = nullptr;                   // 窗口（标题栏用）
+static SDL_WindowIM::WindowIM g_sws;                      // 窗口（标题栏用）
+static SDL_Window*            g_window = nullptr;        // 主窗口
 static FontEx*         g_font = nullptr;
 
 static bool g_quit_requested = false;                     // 菜单「退出」请求
@@ -203,7 +206,7 @@ static DocState* ActiveDoc(){
 }
 
 static void UpdateWindowTitle(){
-    if(!g_sws) return;
+    if(!g_window) return;
     DocState* d = ActiveDoc();
     std::string title;
     if(d){
@@ -212,7 +215,7 @@ static void UpdateWindowTitle(){
     }else{
         title = "Fgui 文本编辑器";   // 欢迎页（无标签）
     }
-    SDL_SetWindowTitle(g_sws->native_handle, title.c_str());
+    SDL_SetWindowTitle(g_window, title.c_str());
 }
 
 static void UpdateStatusText(){
@@ -644,24 +647,30 @@ static void LayoutControls(int win_w, int win_h){
 }
 
 int main(int argc, char** argv){
-    SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    SDL_SetHint(SDL_HINT_IME_IMPLEMENTED_UI, "1");
+    // SDL3 移除了 SDL_HINT_RENDER_SCALE_QUALITY，默认即为线性缩放
     SDL_SetHint(SDL_HINT_MOUSE_AUTO_CAPTURE, "1");
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     TTF_Init();
 
-    g_sws = SDLWindowStuff::Create("Fgui 文本编辑器", 1000, 800,
-        SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN);
-    g_sws->SetDarkMode(true);
-    g_sws->SetPreference(3);
-    SDL_Renderer* renderer = g_sws->CreateRenderer();
+    g_sws.Create("Fgui 文本编辑器", 1000, 800,
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN);
+    g_sws.SetDarkMode(true);
+    g_sws.SetCornerPreference(DWMWCP_ROUND);
+    g_window = g_sws.Get();
+    SDL_Renderer* renderer = SDL_CreateRenderer(g_window, NULL);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    Fgui_SetWindow(g_window);
 
     SDL_Event eve;
-    EventPlus evp(&eve, g_sws->native_handle);
+    EventPlus evp(&eve, g_window);
     Timer fps_lim(60);
     bool mainloop = true;
+
+    // 持久帧缓冲纹理：脏区重绘在离屏纹理上局部进行，再整体拷贝到 backbuffer 呈现，
+    // 避免 SDL3 双缓冲交换机制导致脏区重绘时旧画面丢失/闪烁。
+    SDL_Texture* frame_buf = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,1000,800);
 
     // 字体：exe 位于 example/ 目录，字体在上级目录；也兼容从根目录运行
     FontEx font(ResolveFontPaths());
@@ -670,7 +679,7 @@ int main(int argc, char** argv){
     Fgui_ConfigControlAnimation(true);
 
     int win_w = 1000, win_h = 800;
-    SDL_GetWindowSize(g_sws->native_handle, &win_w, &win_h);
+    SDL_GetWindowSize(g_window, &win_w, &win_h);
     SDL_Rect top_relative_rect = {0, 0, win_w, win_h};
 
     g_cb = std::make_shared<ControlBox>(SDL_Rect{0, 0, win_w, win_h}, -1, -1);
@@ -754,21 +763,21 @@ int main(int argc, char** argv){
     LayoutControls(win_w, win_h);   // 铺满菜单栏、定位标签区与状态栏
     UpdateWindowTitle();
 
-    g_sws->Show();
+    g_sws.Show();
 
     while(mainloop){
         evp.reset();
         while(evp.poll()){
-            if(eve.window.windowID == SDL_GetWindowID(g_sws->native_handle)){
+            if(eve.window.windowID == SDL_GetWindowID(g_window)){
                 // ---- 快捷键（在转发给控件之前拦截）----
-                if(eve.type == SDL_KEYDOWN){
-                    Uint16 mod = eve.key.keysym.mod;
-                    bool ctrl = (mod & KMOD_CTRL) != 0;
-                    SDL_Scancode sc = eve.key.keysym.scancode;
-                    if(ctrl && (mod & KMOD_SHIFT) && sc == SDL_SCANCODE_Z){ Redo(); continue; }
+                if(eve.type == SDL_EVENT_KEY_DOWN){
+                    Uint16 mod = eve.key.mod;
+                    bool ctrl = (mod & SDL_KMOD_CTRL) != 0;
+                    SDL_Scancode sc = eve.key.scancode;
+                    if(ctrl && (mod & SDL_KMOD_SHIFT) && sc == SDL_SCANCODE_Z){ Redo(); continue; }
                     if(ctrl && sc == SDL_SCANCODE_Z){ Undo(); continue; }
                     if(ctrl && sc == SDL_SCANCODE_Y){ Redo(); continue; }
-                    if(ctrl && (mod & KMOD_SHIFT) && sc == SDL_SCANCODE_S){ SaveActiveFileAs(); continue; }
+                    if(ctrl && (mod & SDL_KMOD_SHIFT) && sc == SDL_SCANCODE_S){ SaveActiveFileAs(); continue; }
                     if(ctrl && sc == SDL_SCANCODE_S){ SaveActiveFile(); continue; }
                     if(ctrl && sc == SDL_SCANCODE_W){ CloseActiveTab(); continue; }
                     if(ctrl && sc == SDL_SCANCODE_N){ NewFile(); continue; }
@@ -780,24 +789,25 @@ int main(int argc, char** argv){
                     }
                 }
 
-                if(eve.window.windowID == SDL_GetWindowID(g_sws->native_handle)) g_cb->MaintainEvent(&eve, top_relative_rect);
+                if(eve.window.windowID == SDL_GetWindowID(g_window)) g_cb->MaintainEvent(&eve, top_relative_rect);
 
-                if(eve.type == SDL_WINDOWEVENT){
-                    if(eve.window.event == SDL_WINDOWEVENT_CLOSE){
-                        if(ConfirmExit()) mainloop = false;
-                    }
-                    else if(eve.window.event == SDL_WINDOWEVENT_RESIZED){
-                        SDL_GetWindowSize(g_sws->native_handle, &win_w, &win_h);
-                        top_relative_rect.w = win_w;
-                        top_relative_rect.h = win_h;
-                        g_cb->default_rect.w = win_w;
-                        g_cb->default_rect.h = win_h;
-                        LayoutControls(win_w, win_h);
-                        g_cb->InvalidateRect();
-                    }
-                    else if(eve.window.event == SDL_WINDOWEVENT_EXPOSED){
-                        g_cb->InvalidateRect();
-                    }
+                if(eve.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED){
+                    if(ConfirmExit()) mainloop = false;
+                }
+                else if(eve.type == SDL_EVENT_WINDOW_RESIZED){
+                    SDL_GetWindowSize(g_window, &win_w, &win_h);
+                    top_relative_rect.w = win_w;
+                    top_relative_rect.h = win_h;
+                    g_cb->default_rect.w = win_w;
+                    g_cb->default_rect.h = win_h;
+                    LayoutControls(win_w, win_h);
+                    g_cb->InvalidateRect();
+                    // 跟随窗口尺寸重建持久帧缓冲纹理
+                    SDL_DestroyTexture(frame_buf);
+                    frame_buf = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,win_w,win_h);
+                }
+                else if(eve.type == SDL_EVENT_WINDOW_EXPOSED){
+                    g_cb->InvalidateRect();
                 }
             }
         }
@@ -824,27 +834,33 @@ int main(int argc, char** argv){
                 UpdateWindowTitle();
                 if(DocState* nd = ActiveDoc()){
                     nd->editor->SetFocus(true);
-                    SDL_StartTextInput();
+                    if(g_window) SDL_StartTextInput(g_window);
                 }
             }
         }
 
         SDL_Rect dirty_rect = g_cb->GetInvaildRect(top_relative_rect);
         if(dirty_rect.w != 0 && dirty_rect.h != 0){
+            // 在持久帧缓冲纹理上局部重绘脏区
+            SDL_FRect fr_dirty = toFRect(dirty_rect);
+            SDL_SetRenderTarget(renderer, frame_buf);
             SDL_SetRenderDrawColor(renderer,
                 g_cb->GetColorKit().BackgroundColorDarker.r,
                 g_cb->GetColorKit().BackgroundColorDarker.g,
                 g_cb->GetColorKit().BackgroundColorDarker.b, 255);
-            SDL_RenderFillRect(renderer, &dirty_rect);
+            SDL_RenderFillRect(renderer, &fr_dirty);
             g_cb->MaintainRender(renderer, top_relative_rect);
+            SDL_SetRenderTarget(renderer, NULL);
+            // 整体拷贝持久缓冲到 backbuffer 并呈现
+            SDL_RenderTexture(renderer, frame_buf, NULL, NULL);
             SDL_RenderPresent(renderer);
         }
 
         fps_lim.Delay();
     }
 
+    SDL_DestroyTexture(frame_buf);
     SDL_DestroyRenderer(renderer);
-    g_sws->Release();
     TTF_Quit();
     SDL_Quit();
     return 0;

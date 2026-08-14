@@ -1,8 +1,8 @@
 #ifndef __INC_FONTEX_
 #define __INC_FONTEX_
 
-#include <SDL.h>
-#include <SDL_ttf.h>
+#include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 #include <algorithm>
 #include <string>
@@ -100,10 +100,10 @@ class FontContainer{
     }
 
     TTF_Font* GetStyled(int style) const{
-        if(TTF_GetFontStyle(&*styled) == style){
+        if(TTF_GetFontStyle(&*styled) == (TTF_FontStyleFlags)style){
             return &*styled;
         }
-        TTF_SetFontStyle(&*styled,style);
+        TTF_SetFontStyle(&*styled,(TTF_FontStyleFlags)style);
         return &*styled;
     }
 
@@ -189,7 +189,7 @@ class FontEx{
         Glyph(uint32_t cp, const SDL_Rect& r, SDL_Surface* s) : rect(r), codepoint(cp), surface(s){
         }
         ~Glyph(){
-            if(surface) SDL_FreeSurface(surface);
+            if(surface) SDL_DestroySurface(surface);
         }
 
         // Glyph持有SDL_Surface*资源，禁止拷贝、支持移动
@@ -200,7 +200,7 @@ class FontEx{
         }
         Glyph& operator=(Glyph&& other) noexcept{
             if(this != &other){
-                if(surface) SDL_FreeSurface(surface);
+                if(surface) SDL_DestroySurface(surface);
                 rect = other.rect;
                 codepoint = other.codepoint;
                 surface = other.surface;
@@ -250,10 +250,10 @@ class FontEx{
         };
 
         TTF_Font* default_font = get_font(0);
-        int default_line_height = TTF_FontHeight(default_font);
+        int default_line_height = TTF_GetFontHeight(default_font);
         int default_space_width = 0;
         int __temp;
-        TTF_SizeUTF8(default_font, " ", &default_space_width, &__temp);
+        TTF_GetStringSize(default_font, " ", 1, &default_space_width, &__temp);
         if(default_space_width <= 0){
             default_space_width = default_line_height / 2;
         }
@@ -275,7 +275,7 @@ class FontEx{
             // 选择第一个提供该字形的字体
             int font_index = 0;
             for(; font_index < (int)fonts.size(); font_index++){
-                if(TTF_GlyphIsProvided32(get_font(font_index), cp)){
+                if(TTF_FontHasGlyph(get_font(font_index), cp)){
                     break;
                 }
             }
@@ -294,11 +294,11 @@ class FontEx{
             }
             else{
                 int minx, maxx, miny, maxy, advance;
-                bool provided = TTF_GlyphIsProvided32(get_font(font_index), cp);
+                bool provided = TTF_FontHasGlyph(get_font(font_index), cp);
                 if(!provided){
                     // 无字形，用 U+FFFD 替代
                     m.codepoint = 0xFFFD;
-                    if(!TTF_GlyphIsProvided32(get_font(font_index), m.codepoint)){
+                    if(!TTF_FontHasGlyph(get_font(font_index), m.codepoint)){
                         // 退回
                         m.codepoint = cp;
                     }
@@ -306,7 +306,7 @@ class FontEx{
                         provided = true;
                     }
                 }
-                if(provided && TTF_GlyphMetrics32(get_font(font_index), cp, &minx, &maxx, &miny, &maxy, &advance) == 0){
+                if(provided && TTF_GetGlyphMetrics(get_font(font_index), cp, &minx, &maxx, &miny, &maxy, &advance)){
                     m.w = std::max(advance, maxx - minx);
                     m.h = maxy - miny;
                     if(m.w <= 0) m.w = default_space_width;
@@ -335,8 +335,8 @@ class FontEx{
             SDL_Surface* sur = nullptr;
             if(create_glyphs){
                 bool is_blank = (m.codepoint == ' ' || m.codepoint == '\t');
-                if(!is_blank && TTF_GlyphIsProvided32(get_font(m.font_index), m.codepoint)){
-                    sur = TTF_RenderGlyph32_Blended(get_font(m.font_index), m.codepoint, color);
+                if(!is_blank && TTF_FontHasGlyph(get_font(m.font_index), m.codepoint)){
+                    sur = TTF_RenderGlyph_Blended(get_font(m.font_index), m.codepoint, color);
                 }
             }
             Glyph g(m.codepoint, {cur_x, y, m.w, m.h}, sur);
@@ -384,11 +384,11 @@ class FontEx{
             return nullptr;
         }
 
-        SDL_Surface* final_surface = SDL_CreateRGBSurfaceWithFormat(0, info.total_width, info.total_height, 32, SDL_PIXELFORMAT_RGBA8888);
+        SDL_Surface* final_surface = SDL_CreateSurface(info.total_width, info.total_height, SDL_PIXELFORMAT_RGBA8888);
         if(!final_surface){
             return nullptr;
         }
-        SDL_FillRect(final_surface, NULL, SDL_MapRGBA(final_surface->format, 0, 0, 0, 0));
+        SDL_FillSurfaceRect(final_surface, NULL, SDL_MapSurfaceRGBA(final_surface, 0, 0, 0, 0));
 
         // 空格、TAB等无字形字符的surface为NULL，仅靠rect占位，不参与绘制。
         // 注意：blit目标尺寸使用surface实际宽高，避免因advance与位图宽不一致导致字符拉伸错位。
@@ -413,11 +413,11 @@ class FontEx{
             return nullptr;
         }
 
-        SDL_Surface* final_surface = SDL_CreateRGBSurfaceWithFormat(0, info.total_width, info.total_height, 32, SDL_PIXELFORMAT_RGBA8888);
+        SDL_Surface* final_surface = SDL_CreateSurface(info.total_width, info.total_height, SDL_PIXELFORMAT_RGBA8888);
         if(!final_surface){
             return nullptr;
         }
-        SDL_FillRect(final_surface, NULL, SDL_MapRGBA(final_surface->format, 0, 0, 0, 0));
+        SDL_FillSurfaceRect(final_surface, NULL, SDL_MapSurfaceRGBA(final_surface, 0, 0, 0, 0));
 
         // 空格、TAB等无字形字符的surface为NULL，仅靠rect占位，不参与绘制。
         // 注意：blit目标尺寸使用surface实际宽高，避免因advance与位图宽不一致导致字符拉伸错位。
@@ -441,8 +441,9 @@ class FontEx{
         dst.x -= dst.w * center.x;
         dst.y -= dst.h * center.y;
         SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer,sur);
-        SDL_RenderCopy(renderer,tex,NULL,&dst);
-        SDL_FreeSurface(sur);
+        SDL_FRect fdst = {(float)dst.x,(float)dst.y,(float)dst.w,(float)dst.h};
+        SDL_RenderTexture(renderer,tex,NULL,&fdst);
+        SDL_DestroySurface(sur);
         SDL_DestroyTexture(tex);
         return dst;
     }
@@ -454,15 +455,16 @@ class FontEx{
         dst.x -= dst.w * center.x;
         dst.y -= dst.h * center.y;
         SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer,sur);
-        SDL_RenderCopy(renderer,tex,NULL,&dst);
-        SDL_FreeSurface(sur);
+        SDL_FRect fdst = {(float)dst.x,(float)dst.y,(float)dst.w,(float)dst.h};
+        SDL_RenderTexture(renderer,tex,NULL,&fdst);
+        SDL_DestroySurface(sur);
         SDL_DestroyTexture(tex);
         return dst;
     }
 
     int GetPrimaryFontHeight(int ptsize){
         if(fonts.empty()) return 0;
-        return TTF_FontHeight(fonts[0].Get(ptsize).GetNormal());
+        return TTF_GetFontHeight(fonts[0].Get(ptsize).GetNormal());
     }
 
     SDL_Surface *GetGlyph(uint32_t codepoint, int ptsize,SDL_Color color)
@@ -470,7 +472,7 @@ class FontEx{
         int font_index = 0;
         for (auto &j : fonts)
         {
-            if (TTF_GlyphIsProvided32(j.Get(ptsize).GetNormal(), codepoint))
+            if (TTF_FontHasGlyph(j.Get(ptsize).GetNormal(), codepoint))
             {
                 break;
             }
@@ -480,7 +482,7 @@ class FontEx{
         {
             font_index = 0;
         }
-        SDL_Surface *sur = TTF_RenderGlyph32_Blended(fonts[font_index].Get(ptsize).GetNormal(), codepoint, color);
+        SDL_Surface *sur = TTF_RenderGlyph_Blended(fonts[font_index].Get(ptsize).GetNormal(), codepoint, color);
         return sur;
     }
 };

@@ -183,6 +183,18 @@ void Fgui_ConfigControlAnimation(bool enable){
     enable_animation = enable;
 }
 
+// 全局主窗口句柄（SDL3 的文本输入/IME 相关 API 需要 SDL_Window*）
+static SDL_Window* g_fgui_window = nullptr;
+
+/**
+ * @brief 设置 Fgui 关联的主窗口（用于 SDL3 文本输入/IME API）
+ * 
+ * @param win 主 SDL_Window
+ */
+void Fgui_SetWindow(SDL_Window* win){
+    g_fgui_window = win;
+}
+
 class ControlBox;
 
 /**
@@ -317,13 +329,13 @@ public:
         SDL_Rect dr2 = ClipRect(dr,dirty_region);
 
         SDL_Rect r;
-        SDL_RenderGetClipRect(renderer, &r);
+        SDL_GetRenderClipRect(renderer, &r);
         SDL_Rect dr3 = SDL_RectEmpty(&r) ? dr2 : RectIntersection(r,dr2);
-        SDL_RenderSetClipRect(renderer, &dr3);
+        SDL_SetRenderClipRect(renderer, &dr3);
         ActionOnPaint(renderer,dr3,dr);
-        if(SDL_RectEmpty(&r)) SDL_RenderSetClipRect(renderer, NULL);
-        else SDL_RenderSetClipRect(renderer, &r);
-        //SDL_RenderSetClipRect(renderer, NULL);
+        if(SDL_RectEmpty(&r)) SDL_SetRenderClipRect(renderer, NULL);
+        else SDL_SetRenderClipRect(renderer, &r);
+        //SDL_SetRenderClipRect(renderer, NULL);
 
         dirty_region = {0,0,0,0};
         return dr;
@@ -338,7 +350,7 @@ public:
         if(timer_time == 0){
             this->ActionOnTimer(relative_rect);
         }else{
-            uint64_t current_temp = SDL_GetTicks64() / timer_time;
+            uint64_t current_temp = SDL_GetTicks() / timer_time;
             if(timer_temp != current_temp){
                 this->ActionOnTimer(relative_rect);
                 timer_temp = current_temp;
@@ -353,7 +365,7 @@ public:
      */
     void MaintainEvent(const SDL_Event* eve,const SDL_Rect& relative_rect){
         // 每轮滚轮事件重置消费标记（放在可见性判断前，避免隐藏子控件残留旧值被误判为已消费）
-        if(eve->type == SDL_MOUSEWHEEL) wheel_consumed = false;
+        if(eve->type == SDL_EVENT_MOUSE_WHEEL) wheel_consumed = false;
         if(!visibility) return;
         this->ActionOnEvent(eve,relative_rect);
     }
@@ -509,7 +521,8 @@ public:
         draw_area.y = relative_rect.y;
 
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColor));
-		SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_1 = toFRect(draw_area);
+		SDL_RenderFillRect(renderer, &__fr_1);
 
         SDL_Rect bar = ClacBarRect();
         bar.x += draw_area.x;
@@ -520,18 +533,20 @@ public:
         }else{
             SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.ForegroundColor));
         }
-		SDL_RenderFillRect(renderer, &bar);
+    SDL_FRect __fr_2 = toFRect(bar);
+		SDL_RenderFillRect(renderer, &__fr_2);
 
 		SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-		SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_3 = toFRect(draw_area);
+		SDL_RenderRect(renderer, &__fr_3);
     }
 
 	void ActionOnEvent(const SDL_Event* event,const SDL_Rect& relative_rect) override{
         SDL_Rect bar = ClacBarRect();
         bar.x += relative_rect.x + default_rect.x;
         bar.y += relative_rect.y + default_rect.y;
-        if(event->type == SDL_MOUSEBUTTONDOWN){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     if (isPointInsideRect(pt, bar)){
@@ -544,16 +559,16 @@ public:
                 }
             }
         }
-        else if(event->type == SDL_MOUSEBUTTONUP){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        else if(event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+            //SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(dragging){
                 SetValueIfNotNull(actions.OnStopScrolling,ypos,ypos,window_height,total_height);
                 this->InvalidateRect();
             }
             dragging = false;
         }
-        else if(event->type == SDL_MOUSEMOTION){
-            SDL_Point pt = RelativizePoint({event->motion.x,event->motion.y},relative_rect);
+        else if(event->type == SDL_EVENT_MOUSE_MOTION){
+            SDL_Point pt = RelativizePoint({(int)event->motion.x,(int)event->motion.y},relative_rect);
             if(dragging){
                 // 按滚动范围（含两端 padding）反算滚动位置：轨道像素 -> [-pad_top, total-window+pad_bottom]
                 int track_h = default_rect.h - bar.h;
@@ -720,7 +735,8 @@ public:
         draw_area.y = relative_rect.y;
 
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColor));
-        SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_4 = toFRect(draw_area);
+        SDL_RenderFillRect(renderer, &__fr_4);
 
         SDL_Rect bar = CalcBarRect();
         bar.x += draw_area.x;
@@ -731,10 +747,12 @@ public:
         } else {
             SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.ForegroundColor));
         }
-        SDL_RenderFillRect(renderer, &bar);
+    SDL_FRect __fr_5 = toFRect(bar);
+        SDL_RenderFillRect(renderer, &__fr_5);
 
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-        SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_6 = toFRect(draw_area);
+        SDL_RenderRect(renderer, &__fr_6);
     }
 
     void ActionOnEvent(const SDL_Event* event, const SDL_Rect& relative_rect) override {
@@ -742,8 +760,8 @@ public:
         bar.x += relative_rect.x + default_rect.x;
         bar.y += relative_rect.y + default_rect.y;
 
-        if (event->type == SDL_MOUSEBUTTONDOWN) {
-            SDL_Point pt = RelativizePoint({event->button.x, event->button.y}, relative_rect);
+        if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+            SDL_Point pt = RelativizePoint({(int)event->button.x, (int)event->button.y}, relative_rect);
             if (event->button.button == SDL_BUTTON_LEFT) {
                 if (isPointInsideRect(pt, default_rect)) {
                     if (isPointInsideRect(pt, bar)) {
@@ -755,16 +773,16 @@ public:
                 }
             }
         }
-        else if (event->type == SDL_MOUSEBUTTONUP) {
-            SDL_Point pt = RelativizePoint({event->button.x, event->button.y}, relative_rect);
+        else if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
+            //SDL_Point pt = RelativizePoint({(int)event->button.x, (int)event->button.y}, relative_rect);
             if(dragging){
                 SetValueIfNotNull(actions.OnStopScrolling,xpos,xpos,window_width,total_width);
                 this->InvalidateRect();
             }
             dragging = false;
         }
-        else if (event->type == SDL_MOUSEMOTION) {
-            SDL_Point pt = RelativizePoint({event->motion.x, event->motion.y}, relative_rect);
+        else if (event->type == SDL_EVENT_MOUSE_MOTION) {
+            SDL_Point pt = RelativizePoint({(int)event->motion.x, (int)event->motion.y}, relative_rect);
             if (dragging) {
                 // 按滚动范围（含两端 padding）反算滚动位置：轨道像素 -> [-pad_left, total-window+pad_right]
                 int track_w = default_rect.w - bar.w;
@@ -968,20 +986,20 @@ class ControlBox : public Fgui_Control{
     }
 
     bool ShallEventPenetrate(const SDL_Event* eve,const SDL_Rect& rect){
-        if(eve->type == SDL_MOUSEBUTTONDOWN){
+        if(eve->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
             if(!isPointInsideRect({eve->button.x,eve->button.y},rect)){
                 return false;
             }
         }
-        else if(eve->type == SDL_MOUSEBUTTONUP){
+        else if(eve->type == SDL_EVENT_MOUSE_BUTTON_UP){
             return true;
         }
-        else if(eve->type == SDL_MOUSEWHEEL){
+        else if(eve->type == SDL_EVENT_MOUSE_WHEEL){
             // SDL_Event 为 union，滚轮事件里 button.x/y 与 wheel 结构偏移错位（读到的是 wheel.y 和 direction），
             // 必须用 SDL_GetMouseState 取真实鼠标坐标做命中测试，否则嵌套容器的滚轮永不透传给内层控件
-            int mx, my;
-            SDL_GetMouseState(&mx, &my);
-            if(!isPointInsideRect({mx,my},rect)){
+            float mxf, myf;
+            SDL_GetMouseState(&mxf, &myf);
+            if(!isPointInsideRect({(int)mxf,(int)myf},rect)){
                 return false;
             }
         }
@@ -1155,9 +1173,9 @@ class ControlBox : public Fgui_Control{
 
             // 保存原有的裁剪区域，设置新的裁剪区域为可见部分
             SDL_Rect old_clip;
-            SDL_RenderGetClipRect(renderer, &old_clip);
+            SDL_GetRenderClipRect(renderer, &old_clip);
             SDL_Rect new_clip = SDL_RectEmpty(&old_clip) ? visible : RectIntersection(old_clip, visible);
-            SDL_RenderSetClipRect(renderer, &new_clip);
+            SDL_SetRenderClipRect(renderer, &new_clip);
 
             // 将可见区域转换到子控件的局部坐标系，作为dirty_region传递
             SDL_Rect dirty_in_child = {
@@ -1170,8 +1188,8 @@ class ControlBox : public Fgui_Control{
             i.control_ptr->ClearInvaildRect();
 
             // 恢复原有的裁剪区域
-            if(SDL_RectEmpty(&old_clip)) SDL_RenderSetClipRect(renderer, NULL);
-            else SDL_RenderSetClipRect(renderer, &old_clip);
+            if(SDL_RectEmpty(&old_clip)) SDL_SetRenderClipRect(renderer, NULL);
+            else SDL_SetRenderClipRect(renderer, &old_clip);
         }
 
         SDL_Rect rect = GetInnerRect();
@@ -1195,7 +1213,7 @@ class ControlBox : public Fgui_Control{
             }
         }
 
-        if(event->type == SDL_MOUSEWHEEL){
+        if(event->type == SDL_EVENT_MOUSE_WHEEL){
             // 滚轮消费机制：任一子控件（或其子树）已消费滚轮则本容器不再滚动，
             // 并把消费结果继续向上层报告（避免根容器与嵌套容器同时滚动）
             bool child_consumed = false;
@@ -1209,28 +1227,28 @@ class ControlBox : public Fgui_Control{
                 wheel_consumed = true;
             }
             else{
-                int mx, my;
-                SDL_GetMouseState(&mx, &my);
-                if(isPointInsideRect({mx,my},new_rel_rect)){
+                float mxf, myf;
+                SDL_GetMouseState(&mxf, &myf);
+                if(isPointInsideRect({(int)mxf,(int)myf},new_rel_rect)){
                     SDL_Rect rect = GetInnerRect();
                     // 仅当本容器该方向确有溢出（可滚动）时才滚动并消费；无溢出则不消费（透传给父容器）
                     bool can_v = (rect.h != default_rect.h);
                     bool can_h = (rect.w != default_rect.w);
                     bool scrolled = false;
                     if(can_v && event->wheel.y != 0){
-                        sb_v->SetScrollPos(sb_v->GetScrollPos() - 45 * event->wheel.y);
+                        sb_v->SetScrollPos(sb_v->GetScrollPos() - 45 * (int)event->wheel.y);
                         scrolled = true;
                     }
                     if(can_h && event->wheel.x != 0){
-                        sb_h->SetScrollPos(sb_h->GetScrollPos() + 45 * event->wheel.x);
+                        sb_h->SetScrollPos(sb_h->GetScrollPos() + 45 * (int)event->wheel.x);
                         scrolled = true;
                     }
                     if(scrolled) wheel_consumed = true;
                 }
             }
         }
-        else if(event->type == SDL_MOUSEMOTION){
-            mouse_pos = {event->motion.x,event->motion.y};
+        else if(event->type == SDL_EVENT_MOUSE_MOTION){
+            mouse_pos = {(int)event->motion.x,(int)event->motion.y};
         }
 
         SDL_Rect rect = GetInnerRect();
@@ -1413,10 +1431,12 @@ public:
             draw_area.y = relative_rect.y;
             SDL_Color bg_c = bg_color.getLastValue(); 
             SDL_SetRenderDrawColor(renderer, ColorArg(bg_c));
-            SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_7 = toFRect(draw_area);
+            SDL_RenderFillRect(renderer, &__fr_7);
             font->paintText_Blended(renderer,draw_area.x + draw_area.w / 2,draw_area.y + draw_area.h / 2,ptsize,text,enable ? color_kit.TextColor : color_kit.ForegroundColor,{0.5f,0.5f});
             SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-            SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_8 = toFRect(draw_area);
+            SDL_RenderRect(renderer, &__fr_8);
             return;
         }
 
@@ -1436,17 +1456,19 @@ public:
 		{
 			SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColor));
 		}
-		SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_9 = toFRect(draw_area);
+		SDL_RenderFillRect(renderer, &__fr_9);
 		
         font->paintText_Blended(renderer,draw_area.x + draw_area.w / 2,draw_area.y + draw_area.h / 2,ptsize,text,enable ? color_kit.TextColor : color_kit.ForegroundColor,{0.5f,0.5f});
 
 		SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-		SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_10 = toFRect(draw_area);
+		SDL_RenderRect(renderer, &__fr_10);
     }
 
 	void ActionOnEvent(const SDL_Event* event,const SDL_Rect& relative_rect) override{
-        if(event->type == SDL_MOUSEBUTTONDOWN){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     _pressing = true;
@@ -1454,8 +1476,8 @@ public:
                 }
             }
         }
-        else if(event->type == SDL_MOUSEBUTTONUP){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        else if(event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     if(enable) CallIfNotNull(actions.OnClick,this);
@@ -1464,8 +1486,8 @@ public:
                 }
             }
         }
-        else if(event->type == SDL_MOUSEMOTION){
-            SDL_Point pt = RelativizePoint({event->motion.x,event->motion.y},relative_rect);
+        else if(event->type == SDL_EVENT_MOUSE_MOTION){
+            SDL_Point pt = RelativizePoint({(int)event->motion.x,(int)event->motion.y},relative_rect);
             if (isPointInsideRect(pt, default_rect))
             {
                 if (!_hovered)
@@ -1663,8 +1685,8 @@ public:
     }
 
 	void ActionOnEvent(const SDL_Event* event,const SDL_Rect& relative_rect) override{
-        if(event->type == SDL_MOUSEBUTTONDOWN){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     _pressing = true;
@@ -1672,8 +1694,8 @@ public:
                 }
             }
         }
-        else if(event->type == SDL_MOUSEBUTTONUP){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        else if(event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     CallIfNotNull(actions.OnClick,this);
@@ -1682,8 +1704,8 @@ public:
                 }
             }
         }
-        else if(event->type == SDL_MOUSEMOTION){
-            SDL_Point pt = RelativizePoint({event->motion.x,event->motion.y},relative_rect);
+        else if(event->type == SDL_EVENT_MOUSE_MOTION){
+            SDL_Point pt = RelativizePoint({(int)event->motion.x,(int)event->motion.y},relative_rect);
             if(_pressing){
                 if(!isPointInsideRect(pt,default_rect)){
                     _pressing = false;
@@ -1829,7 +1851,7 @@ class InputBox : public Fgui_Control{
         // 清空布局会触发Glyph析构，自动释放各Glyph持有的Surface
         layout.line_infos.clear();
 
-        if(sur_text_buff) SDL_FreeSurface(sur_text_buff);
+        if(sur_text_buff) SDL_DestroySurface(sur_text_buff);
         sur_text_buff = NULL;
     }
 
@@ -1850,8 +1872,8 @@ class InputBox : public Fgui_Control{
         buff_w = layout.total_width;
         buff_h = layout.total_height;
         if(buff_w <= 0 || buff_h <= 0) return;
-        sur_text_buff = SDL_CreateRGBSurfaceWithFormat(0,buff_w,buff_h,32,SDL_PIXELFORMAT_ARGB8888);
-        SDL_FillRect(sur_text_buff,NULL,SDL_MapRGBA(sur_text_buff->format,0,0,0,0));
+        sur_text_buff = SDL_CreateSurface(buff_w, buff_h, SDL_PIXELFORMAT_ARGB8888);
+        SDL_FillSurfaceRect(sur_text_buff,NULL,SDL_MapSurfaceRGBA(sur_text_buff,0,0,0,0));
         int cur_y = 0;
         for(auto& line : layout.line_infos){
             for(auto& glyph : line.glyphs){
@@ -1869,7 +1891,7 @@ class InputBox : public Fgui_Control{
     }
 
     void ResetCursorBlink(){
-        cursor_blink_time_temp = SDL_GetTicks64();
+        cursor_blink_time_temp = SDL_GetTicks();
     }
 
     size_t PointToChar(const SDL_Point& mousepos,const SDL_Rect& rel_rect){
@@ -2156,7 +2178,7 @@ public:
 
         timer_time = 500;
 
-        cursor_blink_time_temp = SDL_GetTicks64();
+        cursor_blink_time_temp = SDL_GetTicks();
 
         dragging = false;
 
@@ -2202,7 +2224,8 @@ public:
         UpdateScrollBarInfo();
 
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColor));
-        SDL_RenderFillRect(renderer,&draw_area);
+    SDL_FRect __fr_11 = toFRect(draw_area);
+        SDL_RenderFillRect(renderer, &__fr_11);
 
         // 文本可见区域（扣除滚动条占用的空间）
         SDL_Rect inner = GetInnerTextRect();
@@ -2220,7 +2243,7 @@ public:
                 // SDL_CreateTextureFromSurface——超大缓冲（如超长单行文本 > max_texture_width）
                 // 会因超限失败返回 NULL，导致文本整段不显示。
                 const int bpp = 4; // sur_text_buff 为 32bpp (ARGB8888)
-                SDL_Texture* tex = SDL_CreateTexture(renderer, sur_text_buff->format->format,SDL_TEXTUREACCESS_STATIC, src.w, src.h);
+                SDL_Texture* tex = SDL_CreateTexture(renderer, sur_text_buff->format,SDL_TEXTUREACCESS_STATIC, src.w, src.h);
                 if(tex){
                     // SDL_CreateTexture 默认 blend mode 为 NONE，而 SDL_CreateTextureFromSurface
                     // 会自动设为 BLEND。若不显式设置，sur_text_buff 中透明黑色背景像素 (0,0,0,0)
@@ -2229,7 +2252,8 @@ public:
                     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
                     Uint8* px = (Uint8*)sur_text_buff->pixels + (size_t)src.y * sur_text_buff->pitch + (size_t)src.x * bpp;
                     SDL_UpdateTexture(tex, NULL, px, sur_text_buff->pitch);
-                    SDL_RenderCopy(renderer,tex,NULL,&adst);
+    SDL_FRect __fr_12 = toFRect(adst);
+                    SDL_RenderTexture(renderer, tex, NULL, &__fr_12);
                     SDL_DestroyTexture(tex);
                 }
             }
@@ -2256,7 +2280,8 @@ public:
                 }
                 if(focused && index >= selection_begin && index < selection_end){
                     SDL_SetRenderDrawColor(renderer,255,255,255,122);
-                    SDL_RenderFillRect(renderer,&dst);
+    SDL_FRect __fr_13 = toFRect(dst);
+                    SDL_RenderFillRect(renderer, &__fr_13);
                 }
             }
 
@@ -2277,7 +2302,8 @@ public:
                     };
                     if(isRectInRect(dst,inner_abs)){
                         SDL_SetRenderDrawColor(renderer,255,255,255,122);
-                        SDL_RenderFillRect(renderer,&dst);
+    SDL_FRect __fr_14 = toFRect(dst);
+                        SDL_RenderFillRect(renderer, &__fr_14);
                     }
                 }
             }
@@ -2285,12 +2311,12 @@ public:
             line_y += line.rect.h;
         }
         
-        if(focused && ((SDL_GetTicks64() - cursor_blink_time_temp) % 1000) < 500){
+        if(focused && ((SDL_GetTicks() - cursor_blink_time_temp) % 1000) < 500){
             SDL_Rect cursor = GetCursorRenderPos();
             cursor.x += draw_area.x;
             cursor.y += draw_area.y;
             SDL_SetRenderDrawColor(renderer,255,255,255,255);
-            SDL_RenderDrawLine(renderer,cursor.x,cursor.y,cursor.x,cursor.y + cursor.h);
+            SDL_RenderLine(renderer,cursor.x,cursor.y,cursor.x,cursor.y + cursor.h);
         }
 
         // 绘制滚动条（内容溢出时显示）；InputBox直接渲染滚动条，渲染后清空其脏区
@@ -2304,7 +2330,8 @@ public:
         }
 
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-        SDL_RenderDrawRect(renderer,&draw_area);
+    SDL_FRect __fr_15 = toFRect(draw_area);
+        SDL_RenderRect(renderer, &__fr_15);
     }
 
 	void ActionOnEvent(const SDL_Event* event,const SDL_Rect& relative_rect) override{
@@ -2317,14 +2344,16 @@ public:
             SDL_Rect shr = GetScrollBarHAbsRect(draw_area);
 
             SDL_Point mpt = {-9999,-9999};
-            if(event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP){
-                mpt = {event->button.x, event->button.y};
+            if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN || event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+                mpt = {(int)event->button.x, (int)event->button.y};
             }
-            else if(event->type == SDL_MOUSEMOTION){
-                mpt = {event->motion.x, event->motion.y};
+            else if(event->type == SDL_EVENT_MOUSE_MOTION){
+                mpt = {(int)event->motion.x, (int)event->motion.y};
             }
-            else if(event->type == SDL_MOUSEWHEEL){
-                SDL_GetMouseState(&mpt.x,&mpt.y);
+            else if(event->type == SDL_EVENT_MOUSE_WHEEL){
+                float mxf, myf;
+                SDL_GetMouseState(&mxf, &myf);
+                mpt = {(int)mxf, (int)myf};
             }
 
             if(sb_v && show_sb_v && isPointInsideRect(mpt,svr)) on_scrollbar = true;
@@ -2335,18 +2364,20 @@ public:
         }
 
         // 滚轮滚动（鼠标位于输入框内时生效）
-        if(event->type == SDL_MOUSEWHEEL){
+        if(event->type == SDL_EVENT_MOUSE_WHEEL){
             SDL_Point mpos;
-            SDL_GetMouseState(&mpos.x,&mpos.y);
+            float mxf, myf;
+            SDL_GetMouseState(&mxf, &myf);
+            mpos = {(int)mxf, (int)myf};
             if(isPointInsideRect(mpos,draw_area)){
                 bool scrolled = false;
                 if(sb_v && show_sb_v){
-                    sb_v->SetScrollPos(sb_v->GetScrollPos() - 30 * event->wheel.y);
+                    sb_v->SetScrollPos(sb_v->GetScrollPos() - 30 * (int)event->wheel.y);
                     cam_y = sb_v->GetScrollPos();
                     scrolled = true;
                 }
                 if(sb_h && show_sb_h){
-                    sb_h->SetScrollPos(sb_h->GetScrollPos() - 30 * event->wheel.x);
+                    sb_h->SetScrollPos(sb_h->GetScrollPos() - 30 * (int)event->wheel.x);
                     cam_x = sb_h->GetScrollPos();
                     scrolled = true;
                 }
@@ -2358,11 +2389,11 @@ public:
             }
         }
 
-        if (event->type == SDL_MOUSEBUTTONDOWN)
+        if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
         {
             if (event->button.button == SDL_BUTTON_LEFT)
             {
-                SDL_Point pt = RelativizePoint({event->button.x, event->button.y}, relative_rect);
+                SDL_Point pt = RelativizePoint({(int)event->button.x, (int)event->button.y}, relative_rect);
                 if (isPointInsideRect(pt, default_rect))
                 {
                     if(!on_scrollbar){
@@ -2370,14 +2401,16 @@ public:
                         SDL_Rect input_rect = default_rect;
                         input_rect.x += relative_rect.x;
                         input_rect.y += relative_rect.y;
-                        SDL_SetTextInputRect(&input_rect);
-                        SDL_StartTextInput();
+                        if(g_fgui_window){
+                            SDL_SetTextInputArea(g_fgui_window, &input_rect, 0);
+                            SDL_StartTextInput(g_fgui_window);
+                        }
                     }
                 }
                 else
                 {
                     SetFocus(false);
-                    //SDL_StopTextInput();
+                    //SDL_StopTextInput(g_fgui_window);
                 }
             }
         }
@@ -2387,37 +2420,37 @@ public:
         bool read_only = (flags & FGUI_INPUTBOX_FLAG_READ_ONLY) != 0;
         bool allow_multilines = (flags & FGUI_INPUTBOX_FLAG_ALLOW_MULTILINES) != 0;
 
-        if(event->type == SDL_KEYDOWN){
-            if(event->key.keysym.scancode == SDL_SCANCODE_LEFT){
-                MoveCursorLeft(event->key.keysym.mod & KMOD_SHIFT);
+        if(event->type == SDL_EVENT_KEY_DOWN){
+            if(event->key.scancode == SDL_SCANCODE_LEFT){
+                MoveCursorLeft(event->key.mod & SDL_KMOD_SHIFT);
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_RIGHT){
-                MoveCursorRight(event->key.keysym.mod & KMOD_SHIFT);
+            else if(event->key.scancode == SDL_SCANCODE_RIGHT){
+                MoveCursorRight(event->key.mod & SDL_KMOD_SHIFT);
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_UP){
-                MoveCursorUp(event->key.keysym.mod & KMOD_SHIFT);
+            else if(event->key.scancode == SDL_SCANCODE_UP){
+                MoveCursorUp(event->key.mod & SDL_KMOD_SHIFT);
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_DOWN){
-                MoveCursorDown(event->key.keysym.mod & KMOD_SHIFT);
+            else if(event->key.scancode == SDL_SCANCODE_DOWN){
+                MoveCursorDown(event->key.mod & SDL_KMOD_SHIFT);
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_BACKSPACE){
+            else if(event->key.scancode == SDL_SCANCODE_BACKSPACE){
                 if(!read_only) DeleteText();
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_RETURN || event->key.keysym.scancode == SDL_SCANCODE_RETURN2){
+            else if(event->key.scancode == SDL_SCANCODE_RETURN || event->key.scancode == SDL_SCANCODE_RETURN2){
                 if(allow_multilines && !read_only){
                     InsertText("\n");
                 }
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_C){
-                if(event->key.keysym.mod & KMOD_CTRL){
+            else if(event->key.scancode == SDL_SCANCODE_C){
+                if(event->key.mod & SDL_KMOD_CTRL){
                     std::string str = GetSelection();
                     if(!str.empty()){
                         SDL_SetClipboardText(str.c_str());
                     }
                 }
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_V){
-                if((event->key.keysym.mod & KMOD_CTRL) && !read_only){
+            else if(event->key.scancode == SDL_SCANCODE_V){
+                if((event->key.mod & SDL_KMOD_CTRL) && !read_only){
                     char* str = SDL_GetClipboardText();
                     if(str[0] != '\0'){
                         InsertText(str);
@@ -2425,8 +2458,8 @@ public:
                     SDL_free(str);
                 }
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_X){
-                if((event->key.keysym.mod & KMOD_CTRL) && !read_only){
+            else if(event->key.scancode == SDL_SCANCODE_X){
+                if((event->key.mod & SDL_KMOD_CTRL) && !read_only){
                     std::string str = GetSelection();
                     if(!str.empty()){
                         SDL_SetClipboardText(str.c_str());
@@ -2434,21 +2467,21 @@ public:
                     }
                 }
             }
-            else if(event->key.keysym.scancode == SDL_SCANCODE_A){
-                if(event->key.keysym.mod & KMOD_CTRL){
+            else if(event->key.scancode == SDL_SCANCODE_A){
+                if(event->key.mod & SDL_KMOD_CTRL){
                     selection_secondary = 0;
                     selection_primary = GetTotalLength();
                     this->InvalidateRect();
                 }
             }
         }
-        else if(event->type == SDL_TEXTINPUT){
+        else if(event->type == SDL_EVENT_TEXT_INPUT){
             if(!read_only) InsertText(event->text.text);
         }
-        else if(event->type == SDL_MOUSEBUTTONDOWN){
+        else if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
             // 点击滚动条时不移动光标/开始拖选
             if(!on_scrollbar){
-                SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+                SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
                 selection_primary = selection_secondary = PointToChar(pt,default_rect);
                 dragging = true;
                 UpdateCamPos();
@@ -2456,13 +2489,13 @@ public:
                 this->InvalidateRect();
             }
         }
-        else if(event->type == SDL_MOUSEMOTION){
-            SDL_Point temp;
-            if(!(SDL_GetMouseState(&temp.x,&temp.y) & SDL_BUTTON_LMASK)){
+        else if(event->type == SDL_EVENT_MOUSE_MOTION){
+            float mxf, myf;
+            if(!(SDL_GetMouseState(&mxf,&myf) & SDL_BUTTON_LMASK)){
                 dragging = false;
             }
             if(dragging){
-                SDL_Point pt = RelativizePoint({event->motion.x,event->motion.y},relative_rect);
+                SDL_Point pt = RelativizePoint({(int)event->motion.x,(int)event->motion.y},relative_rect);
                 selection_primary = PointToChar(pt,default_rect);
                 UpdateCamPos();
                 ResetCursorBlink();
@@ -2856,15 +2889,16 @@ public:
             draw_area.y = relative_rect.y;
 
             SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColor));
-            SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_16 = toFRect(draw_area);
+            SDL_RenderFillRect(renderer, &__fr_16);
 
             double process = 0;
 
             if(last_state == CHECKBOX_STATE_UNCHECKED){
-                process = BezierCurve(beforeNumber(time_checking,SDL_GetTicks64(),100),BC_EASE_IN_OUT);
+                process = BezierCurve(beforeNumber(time_checking,SDL_GetTicks(),100),BC_EASE_IN_OUT);
             }
             else{
-                process = BezierCurve(1.0 - beforeNumber(time_checking,SDL_GetTicks64(),100),BC_EASE_IN_OUT);
+                process = BezierCurve(1.0 - beforeNumber(time_checking,SDL_GetTicks(),100),BC_EASE_IN_OUT);
             }
 
             paintFilledCircle(renderer,{color_kit.ForegroundColor.r,color_kit.ForegroundColor.g,color_kit.ForegroundColor.b,(uint8_t)(process * 255.0)},{draw_area.w / 2,draw_area.h / 2},process * hypot(double(draw_area.w / 2),double(draw_area.h / 2)));
@@ -2904,7 +2938,8 @@ public:
             }
 
             SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-            SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_17 = toFRect(draw_area);
+            SDL_RenderRect(renderer, &__fr_17);
             return;
         }
 
@@ -2918,7 +2953,8 @@ public:
         else{
             SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.ForegroundColor));
         }
-		SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_18 = toFRect(draw_area);
+		SDL_RenderFillRect(renderer, &__fr_18);
 
         if(state == CHECKBOX_STATE_CHECKED){
             SDL_Rect _temp = ShrinkRect(draw_area,0.6);
@@ -2928,13 +2964,13 @@ public:
             };
             for(int i = 0;i < 8;i++){
                 SDL_Rect temp = {_temp.x + offsets[i].x,_temp.y + offsets[i].y,_temp.w,_temp.h};
-                SDL_Point pts[3] = {
-                    {temp.x,temp.y + temp.h / 2},
-                    {temp.x + temp.w * 0.3f,temp.y + temp.h},
-                    {temp.x + temp.w,temp.y}
+                SDL_FPoint pts[3] = {
+                    {(float)temp.x,(float)(temp.y + temp.h / 2)},
+                    {(float)(temp.x + temp.w * 0.3f),(float)(temp.y + temp.h)},
+                    {(float)(temp.x + temp.w),(float)temp.y}
                 };
                 SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.TextColor));
-                SDL_RenderDrawLines(renderer,pts,3);
+                SDL_RenderLines(renderer,pts,3);
             }
         }
         else if(state == CHECKBOX_STATE_INDETERMINATE){
@@ -2946,17 +2982,18 @@ public:
             for(int i = 0;i < 8;i++){
                 SDL_Rect temp = {_temp.x + offsets[i].x,_temp.y + offsets[i].y,_temp.w,_temp.h};
                 SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.TextColor));
-                SDL_RenderDrawLine(renderer,temp.x,temp.y + temp.h / 2,temp.x + temp.w,temp.y + temp.h / 2);
+                SDL_RenderLine(renderer,temp.x,temp.y + temp.h / 2,temp.x + temp.w,temp.y + temp.h / 2);
             }
         }
 
 		SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-		SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_19 = toFRect(draw_area);
+		SDL_RenderRect(renderer, &__fr_19);
     }
 
 	void ActionOnEvent(const SDL_Event* event,const SDL_Rect& relative_rect) override{
-        if(event->type == SDL_MOUSEBUTTONUP){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     last_state = state;
@@ -2970,7 +3007,7 @@ public:
                         state = CHECKBOX_STATE_UNCHECKED;
                     }
                     CallIfNotNull(actions.OnChange,this,state);
-                    time_checking = SDL_GetTicks64();
+                    time_checking = SDL_GetTicks();
                     uflag = false;
                     this->InvalidateRect();
                 }
@@ -2980,7 +3017,7 @@ public:
 
 	void ActionOnTimer(const SDL_Rect& relative_rect) override{
         if(enable_animation){
-            if(SDL_GetTicks64() - time_checking <= 100){
+            if(SDL_GetTicks() - time_checking <= 100){
                 if(!uflag){
                     this->InvalidateRect();
                 }
@@ -3003,11 +3040,11 @@ public:
         last_state = state;
         state = _state;
         if(animated){
-            time_checking = SDL_GetTicks64();
+            time_checking = SDL_GetTicks();
             uflag = false;
         }
         else{
-            time_checking = SDL_GetTicks64() - 100;
+            time_checking = SDL_GetTicks() - 100;
             uflag = true;
         }
         this->InvalidateRect();
@@ -3056,7 +3093,7 @@ class ToggleButton : public Fgui_Control{
 
             SDL_Rect temp = ShrinkRect(draw_area,0.75,0.5);
 
-            double progress = BezierCurve(beforeNumber(time_switching,SDL_GetTicks64(),100),BC_EASE_IN_OUT);
+            double progress = BezierCurve(beforeNumber(time_switching,SDL_GetTicks(),100),BC_EASE_IN_OUT);
             if(!state){
                 progress = 1 - progress;
             }
@@ -3088,17 +3125,18 @@ class ToggleButton : public Fgui_Control{
         }
 
 		// SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-		// SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_20 = toFRect(draw_area);
+		// SDL_RenderRect(renderer, &__fr_20);
     }
 
 	void ActionOnEvent(const SDL_Event* event,const SDL_Rect& relative_rect) override{
-        if(event->type == SDL_MOUSEBUTTONUP){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     state = !state;
                     CallIfNotNull(actions.OnChange,this,state);
-                    time_switching = SDL_GetTicks64();
+                    time_switching = SDL_GetTicks();
                     uflag = false;
                     this->InvalidateRect();
                 }
@@ -3108,7 +3146,7 @@ class ToggleButton : public Fgui_Control{
 
 	void ActionOnTimer(const SDL_Rect& relative_rect) override{
         if(enable_animation){
-            if(SDL_GetTicks64() - time_switching <= 100){
+            if(SDL_GetTicks() - time_switching <= 100){
                 if(!uflag){
                     this->InvalidateRect();
                 }
@@ -3130,11 +3168,11 @@ class ToggleButton : public Fgui_Control{
     void SetState(bool _state,bool animated = false){
         state = _state;
         if(animated){
-            time_switching = SDL_GetTicks64();
+            time_switching = SDL_GetTicks();
             uflag = false;
         }
         else{
-            time_switching = SDL_GetTicks64() - 100;
+            time_switching = SDL_GetTicks() - 100;
             uflag = true;
         }
         this->InvalidateRect();
@@ -3185,7 +3223,7 @@ public:
             draw_area.x = relative_rect.x;
             draw_area.y = relative_rect.y;
 
-            double progress = BezierCurve(beforeNumber(time_checking,SDL_GetTicks64(),100),BC_EASE_IN_OUT);
+            double progress = BezierCurve(beforeNumber(time_checking,SDL_GetTicks(),100),BC_EASE_IN_OUT);
             if(!state){
                 progress = 1 - progress;
             }
@@ -3217,19 +3255,19 @@ public:
     #define SDL_USEREVENT_CODE_RADIOBUTTON_REPEL 121001
 
 	void ActionOnEvent(const SDL_Event* event,const SDL_Rect& relative_rect) override{
-        if(event->type == SDL_MOUSEBUTTONUP){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     if(!state){
                         state = true;
                         CallIfNotNull(actions.OnChange,this);
-                        time_checking = SDL_GetTicks64();
+                        time_checking = SDL_GetTicks();
                         uflag = false;
                         this->InvalidateRect();
                         if(this->parent){
                             SDL_Event event = {0};
-                            event.type = SDL_USEREVENT;
+                            event.type = SDL_EVENT_USER;
                             event.user.timestamp = SDL_GetTicks();
                             event.user.code = SDL_USEREVENT_CODE_RADIOBUTTON_REPEL;
                             this->parent->Broadcast(&event,this);
@@ -3238,7 +3276,7 @@ public:
                 }
             }
         }
-        else if(event->type == SDL_USEREVENT){
+        else if(event->type == SDL_EVENT_USER){
             if(event->user.code == SDL_USEREVENT_CODE_RADIOBUTTON_REPEL){
                 if(state){
                     this->SetState(false,true);
@@ -3249,7 +3287,7 @@ public:
 
 	void ActionOnTimer(const SDL_Rect& relative_rect) override{
         if(enable_animation){
-            if(SDL_GetTicks64() - time_checking <= 100){
+            if(SDL_GetTicks() - time_checking <= 100){
                 if(!uflag){
                     this->InvalidateRect();
                 }
@@ -3271,11 +3309,11 @@ public:
     void SetState(bool _state,bool animated = false){
         state = _state;
         if(animated){
-            time_checking = SDL_GetTicks64();
+            time_checking = SDL_GetTicks();
             uflag = false;
         }
         else{
-            time_checking = SDL_GetTicks64() - 100;
+            time_checking = SDL_GetTicks() - 100;
             uflag = true;
         }
         this->InvalidateRect();
@@ -3317,12 +3355,12 @@ public:
 
     ~PictureBox(){
         if(image){
-            SDL_FreeSurface(image);
+            SDL_DestroySurface(image);
         }
     }
 
     void SetImage(SDL_Surface* _image = NULL){
-        if(image) SDL_FreeSurface(image);
+        if(image) SDL_DestroySurface(image);
         if(_image) image = SDL_DuplicateSurface(_image);
         else image = nullptr;
         this->InvalidateRect();
@@ -3362,8 +3400,9 @@ public:
 
         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer,image);
 
-        int img_w, img_h;
-        SDL_QueryTexture(texture, NULL, NULL, &img_w, &img_h);
+        float fw, fh;
+        SDL_GetTextureSize(texture, &fw, &fh);
+        int img_w = (int)fw, img_h = (int)fh;
 
         int box_x = draw_area.x;
         int box_y = draw_area.y;
@@ -3384,7 +3423,9 @@ public:
                 dst_rect.w = fit_w;
                 dst_rect.h = fit_h;
                 src_rect = {0, 0, img_w, img_h};
-                SDL_RenderCopy(renderer, texture, &src_rect, &dst_rect);
+    SDL_FRect __fr_21 = toFRect(src_rect);
+    SDL_FRect __fr_22 = toFRect(dst_rect);
+                SDL_RenderTexture(renderer, texture, &__fr_21, &__fr_22);
             }
             break;
 
@@ -3392,7 +3433,9 @@ public:
             {
                 dst_rect = default_rect;
                 src_rect = {0, 0, img_w, img_h};
-                SDL_RenderCopy(renderer, texture, &src_rect, &dst_rect);
+    SDL_FRect __fr_23 = toFRect(src_rect);
+    SDL_FRect __fr_24 = toFRect(dst_rect);
+                SDL_RenderTexture(renderer, texture, &__fr_23, &__fr_24);
             }
             break;
 
@@ -3413,7 +3456,9 @@ public:
                     src_rect.y = (img_h - src_rect.h) / 2;
                 }
                 dst_rect = default_rect;
-                SDL_RenderCopy(renderer, texture, &src_rect, &dst_rect);
+    SDL_FRect __fr_25 = toFRect(src_rect);
+    SDL_FRect __fr_26 = toFRect(dst_rect);
+                SDL_RenderTexture(renderer, texture, &__fr_25, &__fr_26);
             }
             break;
 
@@ -3428,7 +3473,9 @@ public:
                         dst_rect.w = img_w;
                         dst_rect.h = img_h;
                         src_rect = {0, 0, img_w, img_h};
-                        SDL_RenderCopy(renderer, texture, &src_rect, &dst_rect);
+    SDL_FRect __fr_27 = toFRect(src_rect);
+    SDL_FRect __fr_28 = toFRect(dst_rect);
+                        SDL_RenderTexture(renderer, texture, &__fr_27, &__fr_28);
                     }
                 }
             }
@@ -3460,7 +3507,9 @@ public:
                     if (src_rect.y + src_rect.h > img_h)
                         src_rect.h = img_h - src_rect.y;
                 }
-                SDL_RenderCopy(renderer, texture, &src_rect, &dst_rect);
+    SDL_FRect __fr_29 = toFRect(src_rect);
+    SDL_FRect __fr_30 = toFRect(dst_rect);
+                SDL_RenderTexture(renderer, texture, &__fr_29, &__fr_30);
             }
             break;
         }
@@ -3569,8 +3618,8 @@ class Slider : public Fgui_Control{
 	void ActionOnEvent(const SDL_Event* event,const SDL_Rect& relative_rect) override{
         
         // 鼠标左键按下：开始拖拽
-        if(event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT){
-            SDL_Point pt = RelativizePoint({event->button.x, event->button.y}, relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT){
+            SDL_Point pt = RelativizePoint({(int)event->button.x, (int)event->button.y}, relative_rect);
             if(isPointInsideRect(pt, default_rect)){
                 is_dragging = true;
                 UpdateValueByMousePos(pt);
@@ -3579,8 +3628,8 @@ class Slider : public Fgui_Control{
         }
 
         // 鼠标移动：拖拽中更新数值
-        if(event->type == SDL_MOUSEMOTION && is_dragging){
-            SDL_Point pt = RelativizePoint({event->motion.x, event->motion.y}, relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_MOTION && is_dragging){
+            SDL_Point pt = RelativizePoint({(int)event->motion.x, (int)event->motion.y}, relative_rect);
             float old_val = current_val;
             UpdateValueByMousePos(pt);
             if(current_val != old_val){
@@ -3589,9 +3638,9 @@ class Slider : public Fgui_Control{
         }
 
         // 鼠标左键抬起：结束拖拽
-        if(event->type == SDL_MOUSEBUTTONUP && event->button.button == SDL_BUTTON_LEFT){
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_LEFT){
             if(is_dragging){
-                SDL_Point pt = RelativizePoint({event->button.x, event->button.y}, relative_rect);
+                SDL_Point pt = RelativizePoint({(int)event->button.x, (int)event->button.y}, relative_rect);
                 UpdateValueByMousePos(pt);
                 CallIfNotNull(actions.OnEndDragging,this,current_val);
                 is_dragging = false;
@@ -3861,13 +3910,16 @@ protected:
         SDL_Rect hbar = {cx - ind_w / 2 + pad / 2, cy - ind_t / 2, ind_w, ind_t};
         if(dropdown_open){
             
-            SDL_RenderFillRect(renderer, &hbar);
+    SDL_FRect __fr_31 = toFRect(hbar);
+            SDL_RenderFillRect(renderer, &__fr_31);
         }
         else{
             
             SDL_Rect vbar = {cx - ind_t / 2 + pad / 2, cy - ind_w / 2, ind_t, ind_w};
-            SDL_RenderFillRect(renderer, &hbar);
-            SDL_RenderFillRect(renderer, &vbar);
+    SDL_FRect __fr_32 = toFRect(hbar);
+            SDL_RenderFillRect(renderer, &__fr_32);
+    SDL_FRect __fr_33 = toFRect(vbar);
+            SDL_RenderFillRect(renderer, &__fr_33);
         }
     }
 
@@ -3883,16 +3935,16 @@ protected:
 
         // 保存旧裁剪并设置新裁剪（与现有裁剪求交集）
         SDL_Rect old_clip;
-        SDL_RenderGetClipRect(renderer, &old_clip);
+        SDL_GetRenderClipRect(renderer, &old_clip);
         SDL_Rect new_clip = SDL_RectEmpty(&old_clip) ? text_clip : RectIntersection(old_clip, text_clip);
-        SDL_RenderSetClipRect(renderer, &new_clip);
+        SDL_SetRenderClipRect(renderer, &new_clip);
 
         font->paintText_Blended(renderer, text_left, draw_area.y + draw_area.h / 2, ptsize,
             GetSelectedItem().ui_string, enable ? color_kit.TextColor : color_kit.ForegroundColor, {0.0f, 0.5f});
 
         // 恢复旧裁剪
-        if(SDL_RectEmpty(&old_clip)) SDL_RenderSetClipRect(renderer, NULL);
-        else SDL_RenderSetClipRect(renderer, &old_clip);
+        if(SDL_RectEmpty(&old_clip)) SDL_SetRenderClipRect(renderer, NULL);
+        else SDL_SetRenderClipRect(renderer, &old_clip);
     }
 
     void OpenDropdown(SDL_Renderer* renderer,const SDL_Rect& combo_screen){
@@ -3906,7 +3958,7 @@ protected:
         dropdown_rect.w = CalcDropdownWidth();
         dropdown_rect.h = visible * ih + pad * 2;
 
-        SDL_Window* win = SDL_RenderGetWindow(renderer);
+        SDL_Window* win = SDL_GetRenderWindow(renderer);
         HWND parent_hwnd = win ? SDL_GetWindowHWND(win) : nullptr;
         float scale = PopupWindow::GetDpiScaleOf(renderer);
 
@@ -3989,46 +4041,51 @@ protected:
 
         // 背景
         SDL_SetRenderDrawColor(r, ColorArg(color_kit.BackgroundColor));
-        SDL_RenderFillRect(r, &size);
+    SDL_FRect __fr_34 = toFRect(size);
+        SDL_RenderFillRect(r, &__fr_34);
 
         // 条目（不含当前已选中的条目），裁剪到不进入滚动条区域
         SDL_Rect old_clip;
-        SDL_RenderGetClipRect(r, &old_clip);
+        SDL_GetRenderClipRect(r, &old_clip);
         SDL_Rect item_clip = {pad, pad, item_right - pad, size.h - pad * 2};
         SDL_Rect new_clip = SDL_RectEmpty(&old_clip) ? item_clip : RectIntersection(old_clip, item_clip);
-        SDL_RenderSetClipRect(r, &new_clip);
+        SDL_SetRenderClipRect(r, &new_clip);
         for(int i = 0; i < visible; i++){
             int idx = vis[scroll_offset + i];
             SDL_Rect row = {pad, pad + i * ih, item_right - pad, ih};
             bool hover = tooltip.IsMouseInside() && isPointInsideRect(mouse, row);
             if(hover){
                 SDL_SetRenderDrawColor(r, ColorArg(color_kit.ForegroundColor));
-                SDL_RenderFillRect(r, &row);
+    SDL_FRect __fr_35 = toFRect(row);
+                SDL_RenderFillRect(r, &__fr_35);
             }
             if(font){
                 font->paintText_Blended(r, row.x + 8, row.y + row.h / 2, ptsize, items[idx].ui_string,
                     color_kit.TextColor, {0.0f, 0.5f});
             }
         }
-        if(SDL_RectEmpty(&old_clip)) SDL_RenderSetClipRect(r, NULL);
-        else SDL_RenderSetClipRect(r, &old_clip);
+        if(SDL_RectEmpty(&old_clip)) SDL_SetRenderClipRect(r, NULL);
+        else SDL_SetRenderClipRect(r, &old_clip);
 
         // 滚动条（条目溢出时显示）：右对齐于下拉框，带轨道背景与悬停变色反馈
         if(sb_visible){
             SDL_Rect track = GetScrollBarHotRect(size);
             SDL_SetRenderDrawColor(r, ColorArg(color_kit.BackgroundColorDarker));
-            SDL_RenderFillRect(r, &track);
+    SDL_FRect __fr_36 = toFRect(track);
+            SDL_RenderFillRect(r, &__fr_36);
 
             SDL_Rect bar = GetScrollBarThumbRect(size);
             bool sb_hover = tooltip.IsMouseInside() && isPointInsideRect(mouse, track);
             SDL_Color sb_c = sb_hover ? color_kit.ForegroundColorLighter : color_kit.ForegroundColor;
             SDL_SetRenderDrawColor(r, ColorArg(sb_c));
-            SDL_RenderFillRect(r, &bar);
+    SDL_FRect __fr_37 = toFRect(bar);
+            SDL_RenderFillRect(r, &__fr_37);
         }
 
         // 边框
         SDL_SetRenderDrawColor(r, ColorArg(color_kit.BorderColor));
-        SDL_RenderDrawRect(r, &size);
+    SDL_FRect __fr_38 = toFRect(size);
+        SDL_RenderRect(r, &__fr_38);
     }
 
     // 每帧驱动下拉列表：处理滚轮/滚动条拖拽/点击并重绘
@@ -4223,11 +4280,13 @@ public:
             draw_area.y = relative_rect.y;
             SDL_Color bg_c = bg_color.getLastValue(); 
             SDL_SetRenderDrawColor(renderer, ColorArg(bg_c));
-            SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_39 = toFRect(draw_area);
+            SDL_RenderFillRect(renderer, &__fr_39);
             // 文本左对齐（左侧留 8px 内边距），裁剪到不进入右侧指示符区域
             PaintSelectedText(renderer, draw_area);
             SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-            SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_40 = toFRect(draw_area);
+            SDL_RenderRect(renderer, &__fr_40);
 
             // 右侧下拉指示符（加号/减号）
             PaintDropdownIndicator(renderer, draw_area);
@@ -4250,13 +4309,15 @@ public:
 		{
 			SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColor));
 		}
-		SDL_RenderFillRect(renderer, &draw_area);
+    SDL_FRect __fr_41 = toFRect(draw_area);
+		SDL_RenderFillRect(renderer, &__fr_41);
 		
         // 文本左对齐（左侧留 8px 内边距），裁剪到不进入右侧指示符区域
         PaintSelectedText(renderer, draw_area);
 
 		SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-		SDL_RenderDrawRect(renderer, &draw_area);
+    SDL_FRect __fr_42 = toFRect(draw_area);
+		SDL_RenderRect(renderer, &__fr_42);
 
         // 右侧下拉指示符（加号/减号）
         PaintDropdownIndicator(renderer, draw_area);
@@ -4268,8 +4329,8 @@ public:
 
         // 下拉列表打开时，对非交互输入（滚轮/失焦/Escape）关闭下拉列表
         if(dropdown_open){
-            if(event->type == SDL_MOUSEWHEEL){
-                // 弹窗为 WS_EX_NOACTIVATE 不持有键盘焦点，滚轮消息经主窗口 SDL_MOUSEWHEEL 到达此处：
+            if(event->type == SDL_EVENT_MOUSE_WHEEL){
+                // 弹窗为 WS_EX_NOACTIVATE 不持有键盘焦点，滚轮消息经主窗口 SDL_EVENT_MOUSE_WHEEL 到达此处：
                 // 鼠标在下拉列表或控件上方时滚动列表（不关闭），否则关闭下拉列表。
                 POINT p;
                 if(GetCursorPos(&p)){
@@ -4286,7 +4347,7 @@ public:
                     }
                     if(over_dropdown || over_combo){
                         int max_scroll = std::max(0, (int)GetVisibleItemIndices().size() - (int)MAX_VISIBLE_ITEMS);
-                        scroll_offset = std::clamp(scroll_offset - event->wheel.y, 0, max_scroll);
+                        scroll_offset = std::clamp(scroll_offset - (int)event->wheel.y, 0, max_scroll);
                         wheel_consumed = true;   // 消费滚轮，阻止父容器同步滚动
                     }
                     else{
@@ -4297,35 +4358,33 @@ public:
                     CloseDropdown();
                 }
             }
-            else if(event->type == SDL_WINDOWEVENT){
+            else if(event->type == SDL_EVENT_WINDOW_MOVED){
                 // 父窗口移动时关闭，避免浮动弹窗留在旧位置
-                if(event->window.event == SDL_WINDOWEVENT_MOVED){
+                CloseDropdown();
+            }
+            else if(event->type == SDL_EVENT_WINDOW_FOCUS_LOST){
+                // 点击我们自己的下拉弹窗也会让主窗口触发 FOCUS_LOST，不能因此关闭下拉框。
+                // 仅当焦点真正切到主窗口/本弹窗之外的其它窗口（其它应用）时才关闭。
+                HWND fg = GetForegroundWindow();
+                HWND main_hwnd = nullptr;
+                if(parent_renderer){
+                    SDL_Window* w = SDL_GetRenderWindow(parent_renderer);
+                    if(w) main_hwnd = SDL_GetWindowHWND(w);
+                }
+                HWND popup_hwnd = tooltip.GetHwnd();
+                if(main_hwnd && fg != main_hwnd && fg != popup_hwnd){
                     CloseDropdown();
                 }
-                else if(event->window.event == SDL_WINDOWEVENT_FOCUS_LOST){
-                    // 点击我们自己的下拉弹窗也会让主窗口触发 FOCUS_LOST，不能因此关闭下拉框。
-                    // 仅当焦点真正切到主窗口/本弹窗之外的其它窗口（其它应用）时才关闭。
-                    HWND fg = GetForegroundWindow();
-                    HWND main_hwnd = nullptr;
-                    if(parent_renderer){
-                        SDL_Window* w = SDL_RenderGetWindow(parent_renderer);
-                        if(w) main_hwnd = SDL_GetWindowHWND(w);
-                    }
-                    HWND popup_hwnd = tooltip.GetHwnd();
-                    if(main_hwnd && fg != main_hwnd && fg != popup_hwnd){
-                        CloseDropdown();
-                    }
-                }
             }
-            else if(event->type == SDL_KEYDOWN){
-                if(event->key.keysym.scancode == SDL_SCANCODE_ESCAPE){
+            else if(event->type == SDL_EVENT_KEY_DOWN){
+                if(event->key.scancode == SDL_SCANCODE_ESCAPE){
                     CloseDropdown();
                 }
             }
         }
 
-        if(event->type == SDL_MOUSEBUTTONDOWN){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     _pressing = true;
@@ -4353,8 +4412,8 @@ public:
                 }
             }
         }
-        else if(event->type == SDL_MOUSEBUTTONUP){
-            SDL_Point pt = RelativizePoint({event->button.x,event->button.y},relative_rect);
+        else if(event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+            SDL_Point pt = RelativizePoint({(int)event->button.x,(int)event->button.y},relative_rect);
             if(event->button.button == SDL_BUTTON_LEFT){
                 if(isPointInsideRect(pt,default_rect)){
                     _pressing = false;
@@ -4362,8 +4421,8 @@ public:
                 }
             }
         }
-        else if(event->type == SDL_MOUSEMOTION){
-            SDL_Point pt = RelativizePoint({event->motion.x,event->motion.y},relative_rect);
+        else if(event->type == SDL_EVENT_MOUSE_MOTION){
+            SDL_Point pt = RelativizePoint({(int)event->motion.x,(int)event->motion.y},relative_rect);
             if (isPointInsideRect(pt, default_rect))
             {
                 if (!_hovered)
@@ -4477,14 +4536,14 @@ class QRCodeBox : public Fgui_Control{
             int img_size = (size + padding * 2) * module_size;
 
             //创建32位RGBA表面
-            SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, img_size, img_size, 32, SDL_PIXELFORMAT_RGBA32);
+            SDL_Surface* surface = SDL_CreateSurface(img_size, img_size, SDL_PIXELFORMAT_RGBA32);
             if(!surface) return;
 
             //填充像素
             SDL_LockSurface(surface);
             Uint32* pixels = (Uint32*)surface->pixels;
-            Uint32 fg = SDL_MapRGBA(surface->format, qr_fg_color.r, qr_fg_color.g, qr_fg_color.b, qr_fg_color.a);
-            Uint32 bg = SDL_MapRGBA(surface->format, qr_bg_color.r, qr_bg_color.g, qr_bg_color.b, qr_bg_color.a);
+            Uint32 fg = SDL_MapSurfaceRGBA(surface, qr_fg_color.r, qr_fg_color.g, qr_fg_color.b, qr_fg_color.a);
+            Uint32 bg = SDL_MapSurfaceRGBA(surface, qr_bg_color.r, qr_bg_color.g, qr_bg_color.b, qr_bg_color.a);
 
             int pitch = surface->pitch / sizeof(Uint32);
 
@@ -4511,7 +4570,7 @@ class QRCodeBox : public Fgui_Control{
             SDL_UnlockSurface(surface);
 
             pb->SetImage(surface);
-            SDL_FreeSurface(surface);
+            SDL_DestroySurface(surface);
 
             this->InvalidateRect();
         }
@@ -4710,7 +4769,7 @@ private:
 
     //计算动画相位
     double CalcAnimPhase() const{
-        double t = fmod((double)(SDL_GetTicks64() - anim_time_base), (double)anim_period) / (double)anim_period; // 0~1
+        double t = fmod((double)(SDL_GetTicks() - anim_time_base), (double)anim_period) / (double)anim_period; // 0~1
         return t;
     }
 
@@ -4757,7 +4816,7 @@ public:
         state = _state;
         anim_period = 1200;
         anim_block_ratio = 0.3f;
-        anim_time_base = SDL_GetTicks64();
+        anim_time_base = SDL_GetTicks();
 
         anim_time_base2 = 0;
 
@@ -4817,8 +4876,8 @@ public:
     void ActionOnTimer(const SDL_Rect& relative_rect) override{
         // Processing：循环动画
         if(state == PROGRESSBAR_STATE_PROCESSING){
-            if((SDL_GetTicks64() - anim_time_base2 > anim_period / 20) || enable_animation){
-                anim_time_base2 = SDL_GetTicks64();
+            if((SDL_GetTicks() - anim_time_base2 > anim_period / 20) || enable_animation){
+                anim_time_base2 = SDL_GetTicks();
                 this->InvalidateRect();
             }
             return;
@@ -4846,7 +4905,7 @@ public:
         state = _state;
         if(state == PROGRESSBAR_STATE_PROCESSING){
             // 重置动画相位，使推挽动画从头开始
-            anim_time_base = SDL_GetTicks64();
+            anim_time_base = SDL_GetTicks();
         }
         else{
             // 离开动画态：同步EMA基准，避免切回Normal时出现回退动画
@@ -5255,7 +5314,7 @@ class TabControl : public Fgui_Control{
             next_active = tabs[ni].id;
         }
         SDL_Event event = {0};
-        event.type = SDL_USEREVENT;
+        event.type = SDL_EVENT_USER;
         event.user.timestamp = SDL_GetTicks();
         event.user.code = SDL_USEREVENT_CODE_TAB_DEACTIVATE;
         tabs[index].content->MaintainEvent(&event,{});
@@ -5362,7 +5421,8 @@ class TabControl : public Fgui_Control{
                 acc.h -= 2 * radius;
             }
             if(acc.w > 0 && acc.h > 0){
-                SDL_RenderFillRect(renderer, &acc);
+    SDL_FRect __fr_43 = toFRect(acc);
+                SDL_RenderFillRect(renderer, &__fr_43);
             }
         }
 
@@ -5372,12 +5432,12 @@ class TabControl : public Fgui_Control{
             if(flags & TAB_FLAG_CLOSE_BUTTON) ta.w -= TAB_CLOSE_SLOT;
             if(ta.w > 0){
                 SDL_Rect old_clip;
-                SDL_RenderGetClipRect(renderer, &old_clip);
+                SDL_GetRenderClipRect(renderer, &old_clip);
                 SDL_Rect new_clip = SDL_RectEmpty(&old_clip) ? ta : RectIntersection(old_clip, ta);
-                SDL_RenderSetClipRect(renderer, &new_clip);
+                SDL_SetRenderClipRect(renderer, &new_clip);
                 font->paintText_Blended(renderer, ta.x + ta.w / 2, ta.y + ta.h / 2, ptsize, tabs[index].name, text_c, {0.5f, 0.5f});
-                if(SDL_RectEmpty(&old_clip)) SDL_RenderSetClipRect(renderer, NULL);
-                else SDL_RenderSetClipRect(renderer, &old_clip);
+                if(SDL_RectEmpty(&old_clip)) SDL_SetRenderClipRect(renderer, NULL);
+                else SDL_SetRenderClipRect(renderer, &old_clip);
             }
         }
 
@@ -5392,8 +5452,8 @@ class TabControl : public Fgui_Control{
             SDL_Color xc = hover ? color_kit.TextColor : color_kit.ForegroundColor;
             SDL_SetRenderDrawColor(renderer, ColorArg(xc));
             int o = r - 3;
-            SDL_RenderDrawLine(renderer, c.x - o, c.y - o, c.x + o, c.y + o);
-            SDL_RenderDrawLine(renderer, c.x + o, c.y - o, c.x - o, c.y + o);
+            SDL_RenderLine(renderer, c.x - o, c.y - o, c.x + o, c.y + o);
+            SDL_RenderLine(renderer, c.x + o, c.y - o, c.x - o, c.y + o);
         }
     }
 
@@ -5448,7 +5508,7 @@ class TabControl : public Fgui_Control{
     void ActivateTab(const std::string& id){
         if(id == active_tab_id) return;
         SDL_Event event = {0};
-        event.type = SDL_USEREVENT;
+        event.type = SDL_EVENT_USER;
         event.user.timestamp = SDL_GetTicks();
         if(id.empty()){
             try{
@@ -5504,7 +5564,7 @@ class TabControl : public Fgui_Control{
 
     void ClearTabs(){
         SDL_Event event = {0};
-        event.type = SDL_USEREVENT;
+        event.type = SDL_EVENT_USER;
         event.user.timestamp = SDL_GetTicks();
         try{
             auto prev_fd = FindTab(active_tab_id);
@@ -5585,7 +5645,8 @@ class TabControl : public Fgui_Control{
         // 1. 标签页条背景
         SDL_Rect strip_screen = {draw_area.x + strip.x, draw_area.y + strip.y, strip.w, strip.h};
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColorDarker));
-        SDL_RenderFillRect(renderer, &strip_screen);
+    SDL_FRect __fr_44 = toFRect(strip_screen);
+        SDL_RenderFillRect(renderer, &__fr_44);
 
         // 2. 各标签页
         for(int i = 0; i < (int)tabs.size(); i++){
@@ -5598,9 +5659,11 @@ class TabControl : public Fgui_Control{
         // 3. 内容区背景与边框（脏区不含内容区时这些绘制会被裁剪掉，无副作用）
         SDL_Rect content_screen = {draw_area.x + content.x, draw_area.y + content.y, content.w, content.h};
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BackgroundColor));
-        SDL_RenderFillRect(renderer, &content_screen);
+    SDL_FRect __fr_45 = toFRect(content_screen);
+        SDL_RenderFillRect(renderer, &__fr_45);
         SDL_SetRenderDrawColor(renderer, ColorArg(color_kit.BorderColor));
-        SDL_RenderDrawRect(renderer, &content_screen);
+    SDL_FRect __fr_46 = toFRect(content_screen);
+        SDL_RenderRect(renderer, &__fr_46);
 
         // 4. 把本控件脏区与内容区的交集投递给激活页并渲染
         if(!active_tab_id.empty() && content.w > 0 && content.h > 0){
@@ -5634,18 +5697,20 @@ class TabControl : public Fgui_Control{
 
         // 鼠标位置 -> 本控件本地坐标
         SDL_Point mpt = {-99999,-99999};
-        if(event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP){
-            mpt = {event->button.x, event->button.y};
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN || event->type == SDL_EVENT_MOUSE_BUTTON_UP){
+            mpt = {(int)event->button.x, (int)event->button.y};
         }
-        else if(event->type == SDL_MOUSEMOTION){
-            mpt = {event->motion.x, event->motion.y};
+        else if(event->type == SDL_EVENT_MOUSE_MOTION){
+            mpt = {(int)event->motion.x, (int)event->motion.y};
         }
-        else if(event->type == SDL_MOUSEWHEEL){
-            SDL_GetMouseState(&mpt.x, &mpt.y);
+        else if(event->type == SDL_EVENT_MOUSE_WHEEL){
+            float mxf, myf;
+            SDL_GetMouseState(&mxf, &myf);
+            mpt = {(int)mxf, (int)myf};
         }
         SDL_Point lpt = RelativizePoint(mpt, ctl_screen);
 
-        if(event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT){
+        if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT){
             int idx = HitTestTab(lpt);
             if(idx >= 0){
                 press_tab_index = idx;
@@ -5673,7 +5738,7 @@ class TabControl : public Fgui_Control{
                 pending_close_index = -1;
             }
         }
-        else if(event->type == SDL_MOUSEMOTION){
+        else if(event->type == SDL_EVENT_MOUSE_MOTION){
             int idx = HitTestTab(lpt);
             if(idx != hover_tab_index){
                 hover_tab_index = idx;
@@ -5716,7 +5781,7 @@ class TabControl : public Fgui_Control{
                 }
             }
         }
-        else if(event->type == SDL_MOUSEBUTTONUP && event->button.button == SDL_BUTTON_LEFT){
+        else if(event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_LEFT){
             if(dragging_tabs){
                 // 拖动结束
                 dragging_tabs = false;
@@ -5758,7 +5823,7 @@ class TabControl : public Fgui_Control{
                     auto fd = FindTab(active_tab_id);
                     fd->content->MaintainEvent(event, content_screen);
                     // 激活页 ControlBox（或其子树）消费了滚轮则向上层报告，父容器不再滚动自身
-                    if(event->type == SDL_MOUSEWHEEL){
+                    if(event->type == SDL_EVENT_MOUSE_WHEEL){
                         wheel_consumed = fd->content->IsWheelConsumed();
                     }
                 }

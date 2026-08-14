@@ -143,7 +143,7 @@ class NumberEnabler{
 	bool nstate;
 	double ans;
 	public:
-	NumberEnabler() : nstate(false),u1(0),u2(0),ans(0){
+	NumberEnabler() : u1(0),u2(0),nstate(false),ans(0){
 
 	}
 	double State(bool state,Uint64 tm,Uint64 timeHold){
@@ -170,7 +170,7 @@ class NumberEnablerRev{
 	bool nstate;
 	double ans;
 	public:
-	NumberEnablerRev() : nstate(false),u1(0),u2(0){
+	NumberEnablerRev() : u1(0),u2(0),nstate(false),ans(0){
 
 	}
 	double State(bool state,Uint64 tm,Uint64 timeHold){
@@ -198,13 +198,13 @@ class Chronograph{
 		time = 0;
 	}
 	void Reset(){
-		time = SDL_GetTicks64();
+		time = SDL_GetTicks();
 	}
 	Uint64 GetPast(){
-		return SDL_GetTicks64() - time;
+		return SDL_GetTicks() - time;
 	}
 	double GetTimeProgress(Uint64 duration){
-		return beforeNumber(time,SDL_GetTicks64(),duration);
+		return beforeNumber(time,SDL_GetTicks(),duration);
 	}
 
 };

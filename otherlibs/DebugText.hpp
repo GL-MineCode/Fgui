@@ -4,16 +4,19 @@
 /**
  * @file DebugText.hpp
  * @author Gao Li (https://github.com/GL-MineCode)
- * @brief A minimalist and lightweight text (bitmap font) drawing library based on SDL2, supporting the UTF-8 character set
+ * @brief A minimalist and lightweight text (bitmap font) drawing library based on SDL3, supporting the UTF-8 character set
  * @version 1.0
  * @date 2026-06-07
  * 
  * @copyright Copyright (c) 2026
  * 
  * @details Licensed under the MIT License. See LICENSE file for full license.
+ * 
+ * @note This is the SDL3 migration of the original SDL2 version.
+ *       The only functional change is the SDL3 header include path.
  */
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cmath>
@@ -163,9 +166,9 @@ SDL_Surface* createDBTextSurface(const char* text, const SDL_Color& color) {
     sur_height += line_max_height;
 
     if(sur_width == 0 || sur_height == 0) return nullptr;
-    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0,sur_width, sur_height,32, SDL_PIXELFORMAT_RGBA8888);
+    SDL_Surface* surface = SDL_CreateSurface(sur_width, sur_height, SDL_PIXELFORMAT_RGBA8888);
     if (!surface) return nullptr;
-    SDL_FillRect(surface, NULL, 0x00000000);
+    SDL_FillSurfaceRect(surface, NULL, 0x00000000);
 
     int cx = 0;
     int cy = 0;
@@ -258,8 +261,9 @@ SDL_Rect paintDBText(SDL_Renderer* renderer,int ux,int uy,const SDL_Color& color
     };
     temp.x -= temp.w * center.x;
     temp.y -= temp.h * center.y;
-    SDL_RenderCopy(renderer,tex,NULL,&temp);
-    SDL_FreeSurface(sur);
+    SDL_FRect ftemp = {(float)temp.x,(float)temp.y,(float)temp.w,(float)temp.h};
+    SDL_RenderTexture(renderer,tex,NULL,&ftemp);
+    SDL_DestroySurface(sur);
     SDL_DestroyTexture(tex);
     return temp;
 }

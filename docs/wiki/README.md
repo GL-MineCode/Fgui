@@ -1,8 +1,8 @@
 # Fgui Wiki
 
-欢迎来到 **Fgui**（Fair GUI Library for SDL2）的文档中心！
+欢迎来到 **Fgui**（Fair GUI Library for SDL3）的文档中心！
 
-Fgui 是一个基于 SDL2 的轻量级 GUI 库，内置脏区重绘优化、丰富的控件集、可自定义配色与自定义控件能力，专为快速开发 SDL2 游戏/工具界面而设计。
+Fgui 是一个基于 SDL3 的轻量级 GUI 库，内置脏区重绘优化、丰富的控件集、可自定义配色与自定义控件能力，专为快速开发 SDL3 游戏/工具界面而设计。
 
 > 注意：以下文档均以库当前源码（`include/Fgui/`）为准，与你工作区中的代码一一对应。
 

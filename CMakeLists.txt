@@ -36,26 +36,19 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 # ============================================================
-# SDL2 依赖路径（使用 dependency 文件夹中的新版本）
+# SDL3 依赖路径（使用 dependency 文件夹中的新版本）
 # ============================================================
-set(SDL2_DIR      "${CMAKE_SOURCE_DIR}/dependency/SDL2-2.32.10")
-set(SDL2TTF_DIR   "${CMAKE_SOURCE_DIR}/dependency/SDL2_ttf-2.24.0")
-set(SDL2IMAGE_DIR "${CMAKE_SOURCE_DIR}/dependency/SDL2_image-2.8.12")
+set(SDL3_DIR      "${CMAKE_SOURCE_DIR}/dependency/SDL3-3.4.14")
+set(SDL3TTF_DIR   "${CMAKE_SOURCE_DIR}/dependency/SDL3_ttf-3.2.2")
+set(SDL3IMAGE_DIR "${CMAKE_SOURCE_DIR}/dependency/SDL3_image-3.4.4")
 
 # ============================================================
 # 外部工具库目录（非 SDL 官方依赖）
-#   优先使用本机开发路径；若不存在（例如他人克隆本仓库，或换机）
-#   则自动回退到仓库内的 otherlibs/ 目录。
-#   首次在新机器上构建时，请把依赖头文件复制到 otherlibs/ 下，
-#   清单见 docs/wiki/01-构建与项目结构.md。
+#   使用仓库内的 otherlibs/ 目录（已随仓库自带 SDL3 迁移版头文件）。
 # ============================================================
 
-# Fgui 依赖的工具头文件（SmoothCpp/SDLWindowStuff/decode/FontEx 等）
-if(EXISTS "D:/AppInstallers/RecentlyC++Programs")
-    set(FGUI_EXT_LIBS_DIR "D:/AppInstallers/RecentlyC++Programs")
-else()
-    set(FGUI_EXT_LIBS_DIR "${CMAKE_SOURCE_DIR}/otherlibs")
-endif()
+# Fgui 依赖的工具头文件（SmoothCpp/SDL_WindowIM/decode/FontEx 等）
+set(FGUI_EXT_LIBS_DIR "${CMAKE_SOURCE_DIR}/otherlibs")
 
 # GL_Commdlg 对话框库（示例程序 001_TextEditor 需要）
 if(EXISTS "D:/Desktop/Git/GL_Commdlg/include")
@@ -68,9 +61,9 @@ endif()
 # 头文件搜索路径
 # ============================================================
 include_directories(
-    ${SDL2_DIR}/include
-    ${SDL2TTF_DIR}/include
-    ${SDL2IMAGE_DIR}/include
+    ${SDL3_DIR}/include
+    ${SDL3TTF_DIR}/include
+    ${SDL3IMAGE_DIR}/include
     ${GL_COMMDLG_DIR}
     ${FGUI_EXT_LIBS_DIR}
     ${CMAKE_SOURCE_DIR}/include
@@ -80,9 +73,9 @@ include_directories(
 # 库文件搜索路径
 # ============================================================
 link_directories(
-    ${SDL2_DIR}/lib/x64
-    ${SDL2TTF_DIR}/lib/x64
-    ${SDL2IMAGE_DIR}/lib/x64
+    ${SDL3_DIR}/lib/x64
+    ${SDL3TTF_DIR}/lib/x64
+    ${SDL3IMAGE_DIR}/lib/x64
 )
 
 # ============================================================
@@ -96,14 +89,13 @@ set(EXT_SRCS
 
 # ============================================================
 # 公共链接库列表（测试程序与示例程序共用）
-# 注意：SDL2main 必须在 SDL2 之前链接（MinGW 要求）
-# 已移除 FFmpeg 相关库（冗余）和 SDL2_mixer（未使用）
+# SDL3 在 Windows 上直接链接 SDL3.lib 即可（SDL3 已处理 main 入口）
+# 已移除 FFmpeg 相关库（冗余）和 SDL_mixer（未使用）
 # ============================================================
 set(FGUI_LINK_LIBS
-    SDL2main
-    SDL2
-    SDL2_image
-    SDL2_ttf
+    SDL3
+    SDL3_image
+    SDL3_ttf
     winmm
     ws2_32
     user32

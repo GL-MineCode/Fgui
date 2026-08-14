@@ -1,9 +1,10 @@
 #define NOMINMAX
 
 #include <cstdio>
-#include <SDL_image.h>
+#include <SDL3_image/SDL_image.h>
 #include "decode.hpp"
-#include "SDLWindowStuff.hpp"
+#define SDL_WINDOWIM_IMPLEMENTATION
+#include "SDL_WindowIM.hpp"
 #include "SDL_EventPlus.hpp"
 #include "Times.hpp"
 #include "DebugText.hpp"
@@ -15,14 +16,16 @@
 int main(int,char**){
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     TTF_Init();
-    IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
-    SDL_SetHint(SDL_HINT_IME_SHOW_UI,"1");
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"0");
-    SDLWindowStuff* sws = SDLWindowStuff::Create("程序模板",1000,800,SDL_WINDOW_ALLOW_HIGHDPI);
-    sws->SetDarkMode(true);
-    sws->SetPreference(3);
-    SDL_Renderer* renderer = sws->CreateRenderer();
+    SDL_SetHint(SDL_HINT_IME_IMPLEMENTED_UI,"1");
+    // SDL3 移除了 SDL_HINT_RENDER_SCALE_QUALITY，默认即为线性缩放
+    SDL_WindowIM::WindowIM sws;
+    sws.Create("程序模板",1000,800,0);
+    sws.SetDarkMode(true);
+    sws.SetCornerPreference(DWMWCP_ROUND);
+    SDL_Window* window = sws.Get();
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
     SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+    Fgui_SetWindow(window);
 
     SDL_Event eve;
     EventPlus evp(&eve);
@@ -214,7 +217,7 @@ int main(int,char**){
 
     cb->PushbackControl("picturebox1",std::make_shared<PictureBox>(SDL_Rect{620,100,200,200},sur));
 
-    SDL_FreeSurface(sur);
+    SDL_DestroySurface(sur);
 
     auto subcb = cb->PushbackControl("controlbox1",std::make_shared<ControlBox>(SDL_Rect{500,400,400,400},500,800));
 
@@ -375,7 +378,16 @@ int main(int,char**){
 
     const SDL_Rect top_relative_rect = {0,0,1000,800};
 
+    // 持久帧缓冲纹理：脏区重绘在离屏纹理上局部进行，再整体拷贝到 backbuffer 呈现，
+    // 避免 SDL3 双缓冲交换机制导致脏区重绘时旧画面丢失/闪烁。
     SDL_Texture* buf = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,top_relative_rect.w,top_relative_rect.h);
+    {
+        // 初始用背景色填充持久缓冲
+        SDL_SetRenderTarget(renderer, buf);
+        SDL_SetRenderDrawColor(renderer,cb->GetColorKit().BackgroundColorDarker.r,cb->GetColorKit().BackgroundColorDarker.g,cb->GetColorKit().BackgroundColorDarker.b,255);
+        SDL_RenderClear(renderer);
+        SDL_SetRenderTarget(renderer, NULL);
+    }
 
     struct HotArea{
         SDL_Rect rect;
@@ -391,17 +403,13 @@ int main(int,char**){
         evp.reset();
 		while (evp.poll())
 		{
-            if(eve.window.windowID == SDL_GetWindowID(sws->native_handle)){
+            if(eve.window.windowID == SDL_GetWindowID(window)){
                 cb->MaintainEvent(&eve,top_relative_rect);
-                if(eve.type == SDL_WINDOWEVENT){
-                    if(eve.window.event == SDL_WINDOWEVENT_CLOSE){
-                        mainloop = false;
-                    }
+                if(eve.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED){
+                    mainloop = false;
                 }
-                else if(eve.type == SDL_WINDOWEVENT){
-                    if(eve.window.event == SDL_WINDOWEVENT_EXPOSED){
-                        cb->InvalidateRect();
-                    }
+                else if(eve.type == SDL_EVENT_WINDOW_EXPOSED){
+                    cb->InvalidateRect();
                 }
             }
 		}
@@ -424,41 +432,37 @@ int main(int,char**){
 
             std::vector<HotArea>::iterator it = ha.begin();
             for(;it != ha.end();it++){
-                if(SDL_RectEquals(&it->rect,&dirty_rect)){
-                    it->timestamp = SDL_GetTicks64();
+                if(SDL_RectsEqual(&it->rect,&dirty_rect)){
+                    it->timestamp = SDL_GetTicks();
                     break;
                 }
             }
-            if(it == ha.end()) ha.push_back({dirty_rect,SDL_GetTicks64()});
+            if(it == ha.end()) ha.push_back({dirty_rect,SDL_GetTicks()});
 
+            // 在持久帧缓冲纹理上局部重绘脏区（保留 buf 上的完整旧画面）
+            SDL_FRect fr_dirty = toFRect(dirty_rect);
+            SDL_SetRenderTarget(renderer, buf);
+            SDL_SetRenderDrawColor(renderer,cb->GetColorKit().BackgroundColorDarker.r,cb->GetColorKit().BackgroundColorDarker.g,cb->GetColorKit().BackgroundColorDarker.b,255);
+            SDL_RenderFillRect(renderer,&fr_dirty);
+            cb->MaintainRender(renderer,top_relative_rect);
+            SDL_SetRenderTarget(renderer, NULL);
+
+            // 整体拷贝持久缓冲到 backbuffer，再叠加热力图并呈现
+            SDL_RenderTexture(renderer,buf,NULL,NULL);
             if(enable_heatmap){
-                SDL_SetRenderTarget(renderer,buf);
-                SDL_SetRenderDrawColor(renderer,cb->GetColorKit().BackgroundColorDarker.r,cb->GetColorKit().BackgroundColorDarker.g,cb->GetColorKit().BackgroundColorDarker.b,255);      
-                SDL_RenderFillRect(renderer,&dirty_rect);
-                cb->MaintainRender(renderer,top_relative_rect);
-                SDL_SetRenderTarget(renderer,NULL);
-            }
-            else{
-                SDL_SetRenderDrawColor(renderer,cb->GetColorKit().BackgroundColorDarker.r,cb->GetColorKit().BackgroundColorDarker.g,cb->GetColorKit().BackgroundColorDarker.b,255);     
-                SDL_RenderFillRect(renderer,&dirty_rect);
-                cb->MaintainRender(renderer,top_relative_rect);
-                SDL_RenderPresent(renderer);
-            }
-        }
-
-        if(enable_heatmap){
-            SDL_RenderCopy(renderer,buf,NULL,NULL);
-            for(std::vector<HotArea>::iterator i = ha.begin();i < ha.end();){
-                Uint64 span = SDL_GetTicks64() - i->timestamp;
-                if(span > 1000){
-                    i = ha.erase(i);
-                    continue;
+                for(std::vector<HotArea>::iterator i = ha.begin();i < ha.end();){
+                    Uint64 span = SDL_GetTicks() - i->timestamp;
+                    if(span > 1000){
+                        i = ha.erase(i);
+                        continue;
+                    }
+                    int a = 255 - 255.0f * (float(span) / 1000.0f);
+                    SDL_SetRenderDrawColor(renderer,255,20,20,a);   
+                    SDL_FRect fr = toFRect(i->rect);
+                    SDL_RenderRect(renderer,&fr);
+                    paintDBTextFormat(renderer,i->rect.x,i->rect.y,{255,20,20,(uint8_t)a},2,{0,0},"%llu",span);
+                    i++;
                 }
-                int a = 255 - 255.0f * (float(span) / 1000.0f);
-                SDL_SetRenderDrawColor(renderer,255,20,20,a);   
-                SDL_RenderDrawRect(renderer,&i->rect);
-                paintDBTextFormat(renderer,i->rect.x,i->rect.y,{255,20,20,(uint8_t)a},2,{0,0},"%llu",span);
-                i++;
             }
             SDL_RenderPresent(renderer);
         }
@@ -470,8 +474,6 @@ int main(int,char**){
     SDL_DestroyTexture(buf);
 
     SDL_DestroyRenderer(renderer);
-    sws->Release();
-    IMG_Quit();
     TTF_Quit();
     SDL_Quit();
     return 0;

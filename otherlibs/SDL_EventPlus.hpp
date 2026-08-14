@@ -1,14 +1,15 @@
 #ifndef __INC_SDL_EVENTPLUS
 #define __INC_SDL_EVENTPLUS
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <cstring>
 class EventPlus
 {
 private:
 	SDL_Event *base;
-	bool key_state[SDL_NUM_SCANCODES];
-	bool key_p_state[SDL_NUM_SCANCODES];
-	Uint32 key_p_time[SDL_NUM_SCANCODES];
+	bool key_state[SDL_SCANCODE_COUNT];
+	bool key_p_state[SDL_SCANCODE_COUNT];
+	// SDL3的时间戳与SDL_GetTicks()均为Uint64
+	Uint64 key_p_time[SDL_SCANCODE_COUNT];
 	bool LMB_state;
 	bool RMB_state;
 	bool MMB_state;
@@ -18,12 +19,12 @@ private:
 	SDL_Point LMB_p_pos;
 	SDL_Point RMB_p_pos;
 	SDL_Point MMB_p_pos;
-	Uint32 LMB_p_time;
-	Uint32 RMB_p_time;
-	Uint32 MMB_p_time;
+	Uint64 LMB_p_time;
+	Uint64 RMB_p_time;
+	Uint64 MMB_p_time;
 	Sint32 wheel_state;
 	SDL_Point mousepos;
-	Uint32 mouse_move_time;
+	Uint64 mouse_move_time;
 	SDL_Point mouse_move_offset;
 	SDL_Window* win;
 	SDL_Rect windowsize;
@@ -76,11 +77,12 @@ public:
 	}
 
 	inline void viewEvent(){
-		if (this->base->type == SDL_KEYDOWN)
+		if (this->base->type == SDL_EVENT_KEY_DOWN)
 		{
 			if(win && this->base->key.windowID != SDL_GetWindowID(win)) return;
 
-			SDL_Scancode sc = this->base->key.keysym.scancode;
+			// SDL3中SDL_KeyboardEvent不再有keysym结构体，scancode直接位于key事件上
+			SDL_Scancode sc = this->base->key.scancode;
 			if (!key_state[sc])
 			{
 				key_p_state[sc] = true;
@@ -88,14 +90,14 @@ public:
 				key_p_time[sc] = this->base->key.timestamp;
 			}
 		}
-		else if (this->base->type == SDL_KEYUP)
+		else if (this->base->type == SDL_EVENT_KEY_UP)
 		{
 			if(win && this->base->key.windowID != SDL_GetWindowID(win)) return;
 
-			SDL_Scancode sc = this->base->key.keysym.scancode;
+			SDL_Scancode sc = this->base->key.scancode;
 			key_state[sc] = false;
 		}
-		else if (this->base->type == SDL_MOUSEBUTTONDOWN)
+		else if (this->base->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
 		{
 			if(win && this->base->button.windowID != SDL_GetWindowID(win)) return;
 
@@ -103,23 +105,24 @@ public:
 			{
 				LMB_p_state = true;
 				LMB_state = true;
-				LMB_p_pos = {this->base->button.x,this->base->button.y};
+				// SDL3中按钮坐标x/y为float
+				LMB_p_pos = {static_cast<int>(this->base->button.x),static_cast<int>(this->base->button.y)};
 				LMB_p_time = this->base->button.timestamp;
 			}
 			else if (this->base->button.button == SDL_BUTTON_RIGHT)
 			{
 				RMB_p_state = true;
 				RMB_state = true;
-				RMB_p_pos = {this->base->button.x,this->base->button.y};
+				RMB_p_pos = {static_cast<int>(this->base->button.x),static_cast<int>(this->base->button.y)};
 				RMB_p_time = this->base->button.timestamp;
 			}else if(this->base->button.button == SDL_BUTTON_MIDDLE){
 				MMB_p_state = true;
 				MMB_state = true;
-				MMB_p_pos = {this->base->button.x,this->base->button.y};
+				MMB_p_pos = {static_cast<int>(this->base->button.x),static_cast<int>(this->base->button.y)};
 				MMB_p_time = this->base->button.timestamp;
 			}
 		}
-		else if (this->base->type == SDL_MOUSEBUTTONUP)
+		else if (this->base->type == SDL_EVENT_MOUSE_BUTTON_UP)
 		{
 			if(win && this->base->button.windowID != SDL_GetWindowID(win)) return;
 
@@ -136,76 +139,82 @@ public:
 				MMB_state = false;
 			}
 		}
-		else if (this->base->type == SDL_MOUSEWHEEL)
+		else if (this->base->type == SDL_EVENT_MOUSE_WHEEL)
 		{
 			if(win && this->base->wheel.windowID != SDL_GetWindowID(win)) return;
 
+			// SDL3中wheel.y为float，且保留了direction字段
 			if (this->base->wheel.direction == SDL_MOUSEWHEEL_NORMAL)
-				this->wheel_state = this->base->wheel.y;
+				this->wheel_state = static_cast<Sint32>(this->base->wheel.y);
 			else
-				this->wheel_state = -this->base->wheel.y;
+				this->wheel_state = -static_cast<Sint32>(this->base->wheel.y);
 		}
-		else if (this->base->type == SDL_MOUSEMOTION)
+		else if (this->base->type == SDL_EVENT_MOUSE_MOTION)
 		{
 			if(win && this->base->motion.windowID != SDL_GetWindowID(win)) return;
 
-			this->mousepos = {this->base->motion.x, this->base->motion.y};
+			// SDL3中motion.x/y为float
+			this->mousepos = {static_cast<int>(this->base->motion.x), static_cast<int>(this->base->motion.y)};
 			mouse_move_time = this->base->motion.timestamp;
 
-			mouse_move_offset.x += this->base->motion.xrel;
-			mouse_move_offset.y += this->base->motion.yrel;
+			mouse_move_offset.x += static_cast<int>(this->base->motion.xrel);
+			mouse_move_offset.y += static_cast<int>(this->base->motion.yrel);
 		}
-		else if(this->base->type == SDL_WINDOWEVENT){
+		else if(this->base->type == SDL_EVENT_WINDOW_RESIZED){
 			if(win && this->base->window.windowID != SDL_GetWindowID(win)) return;
 
-			if(this->base->window.event == SDL_WINDOWEVENT_RESIZED){
-				this->windowsize.w = this->base->window.data1;
-				this->windowsize.h = this->base->window.data2;
-			}else if(this->base->window.event == SDL_WINDOWEVENT_MOVED){
-				this->windowsize.x = this->base->window.data1;
-				this->windowsize.y = this->base->window.data2;
-			}
+			this->windowsize.w = this->base->window.data1;
+			this->windowsize.h = this->base->window.data2;
+		}
+		else if(this->base->type == SDL_EVENT_WINDOW_MOVED){
+			if(win && this->base->window.windowID != SDL_GetWindowID(win)) return;
+
+			this->windowsize.x = this->base->window.data1;
+			this->windowsize.y = this->base->window.data2;
 		}
 
 		if(!win) return;
-		//解决SDL的一个bug，鼠标捕获不触发SDL_MOUSEBUTTONUP事件
-		int temp;
-		Uint32 buttons = SDL_GetGlobalMouseState(&temp,&temp);
+		//解决SDL的一个bug，鼠标捕获不触发SDL_EVENT_MOUSE_BUTTON_UP事件
+		//SDL3中SDL_GetGlobalMouseState接受float*输出坐标
+		float mouse_global_x = 0.0f;
+		float mouse_global_y = 0.0f;
+		Uint32 buttons = SDL_GetGlobalMouseState(&mouse_global_x,&mouse_global_y);
 		if((buttons & SDL_BUTTON_LMASK) == 0 && LMB_state){
 			SDL_Event fakeUp{0};
-			fakeUp.type = SDL_MOUSEBUTTONUP;
+			fakeUp.type = SDL_EVENT_MOUSE_BUTTON_UP;
 			fakeUp.button.button = SDL_BUTTON_LEFT;
 			fakeUp.button.x = -1;
 			fakeUp.button.y = -1;
 			fakeUp.button.clicks = 1;
 			fakeUp.button.windowID = SDL_GetWindowID(win);
-			fakeUp.button.state = SDL_RELEASED;
+			// SDL3中SDL_MouseButtonEvent使用bool down代替Uint8 state
+			fakeUp.button.down = false;
 			fakeUp.button.timestamp = SDL_GetTicks();
 			fakeUp.button.which = SDL_TOUCH_MOUSEID;
 			SDL_PushEvent(&fakeUp);
 		}
 		if((buttons & SDL_BUTTON_RMASK) == 0 && RMB_state){
 			SDL_Event fakeUp{0};
-			fakeUp.type = SDL_MOUSEBUTTONUP;
+			fakeUp.type = SDL_EVENT_MOUSE_BUTTON_UP;
 			fakeUp.button.button = SDL_BUTTON_RIGHT;
 			fakeUp.button.x = -1;
 			fakeUp.button.y = -1;
 			fakeUp.button.clicks = 1;
 			fakeUp.button.windowID = SDL_GetWindowID(win);
-			fakeUp.button.state = SDL_RELEASED;
+			fakeUp.button.down = false;
 			fakeUp.button.timestamp = SDL_GetTicks();
 			fakeUp.button.which = SDL_TOUCH_MOUSEID;
 			SDL_PushEvent(&fakeUp);
 		}
 		if((buttons & SDL_BUTTON_MMASK) == 0 && MMB_state){
 			SDL_Event fakeUp{0};
-			fakeUp.type = SDL_MOUSEBUTTONUP;
+			fakeUp.type = SDL_EVENT_MOUSE_BUTTON_UP;
 			fakeUp.button.button = SDL_BUTTON_MIDDLE;
 			fakeUp.button.x = -1;
 			fakeUp.button.y = -1;
 			fakeUp.button.clicks = 1;
 			fakeUp.button.windowID = SDL_GetWindowID(win);
-			fakeUp.button.state = SDL_RELEASED;
+			fakeUp.button.down = false;
 			fakeUp.button.timestamp = SDL_GetTicks();
 			fakeUp.button.which = SDL_TOUCH_MOUSEID;
 			SDL_PushEvent(&fakeUp);
@@ -214,6 +223,7 @@ public:
 
 	inline int waitpoll(void)
 	{
+		// SDL3中SDL_WaitEvent返回bool，此处保持int返回类型以兼容原有调用
 		int ret = SDL_WaitEvent(this->base);
 		this->viewEvent();
 		return ret;
@@ -221,6 +231,7 @@ public:
 
 	inline int poll(void)
 	{
+		// SDL3中SDL_PollEvent返回bool，此处保持int返回类型以兼容原有调用
 		int ret = SDL_PollEvent(this->base);
 		this->viewEvent();
 		return ret;
@@ -237,7 +248,7 @@ public:
 	{
 		return (SDL_GetTicks() - this->key_p_time[scancode]) > time_req;
 	}
-	inline Uint32 holdTime(SDL_Scancode scancode)
+	inline Uint64 holdTime(SDL_Scancode scancode)
 	{
 		return this->key_p_time[scancode];
 	}
@@ -249,7 +260,7 @@ public:
 	{
 		return (SDL_GetTicks() - this->LMB_p_time) > time_req;
 	}
-	inline Uint32 LMBtime()
+	inline Uint64 LMBtime()
 	{
 		return this->LMB_p_time;
 	}
@@ -261,7 +272,7 @@ public:
 	{
 		return (SDL_GetTicks() - this->RMB_p_time) > time_req;
 	}
-	inline Uint32 RMBtime()
+	inline Uint64 RMBtime()
 	{
 		return this->RMB_p_time;
 	}
@@ -273,7 +284,7 @@ public:
 	{
 		return (SDL_GetTicks() - this->MMB_p_time) > time_req;
 	}
-	inline Uint32 MMBtime()
+	inline Uint64 MMBtime()
 	{
 		return this->MMB_p_time;
 	}

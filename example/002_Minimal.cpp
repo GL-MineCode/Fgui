@@ -10,10 +10,15 @@ int main(int,char**){
     //初始化SDL
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     TTF_Init();
-    SDL_Window* window = SDL_CreateWindow("Minimal Example",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1000,800,SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_Window* window = SDL_CreateWindow("Minimal Example",1000,800,0);
     SDL_Rect top_relative_rect = {0,0,1000,800};
-    SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window,NULL);
     SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+    Fgui_SetWindow(window);
+
+    // 持久帧缓冲纹理：脏区重绘在离屏纹理上局部进行，再整体拷贝到 backbuffer 呈现，
+    // 避免 SDL3 双缓冲交换机制导致脏区重绘时旧画面丢失/闪烁。
+    SDL_Texture* frame_buf = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,1000,800);
 
     //准备GUI
     FontEx font({"font.ttf"});
@@ -36,7 +41,7 @@ int main(int,char**){
     while(running){
         //处理SDL事件
         while(SDL_PollEvent(&eve)){
-            if(eve.type == SDL_QUIT) running = false;
+            if(eve.type == SDL_EVENT_QUIT) running = false;
             if(SDL_GetWindowID(window) == eve.window.windowID) cb->MaintainEvent(&eve,{0,0,1000,800});
         }
         //调用Tick回调
@@ -45,18 +50,24 @@ int main(int,char**){
         SDL_Rect dirty_rect = cb->GetInvaildRect(top_relative_rect);
         //判断是否有脏区域
         if(dirty_rect.w != 0 && dirty_rect.h != 0){
-            //脏区域重绘
+            //在持久帧缓冲纹理上局部重绘脏区
+            SDL_FRect fr_dirty = toFRect(dirty_rect);
+            SDL_SetRenderTarget(renderer, frame_buf);
             SDL_SetRenderDrawColor(renderer,
                 cb->GetColorKit().BackgroundColorDarker.r,
                 cb->GetColorKit().BackgroundColorDarker.g,
                 cb->GetColorKit().BackgroundColorDarker.b, 255);
-            SDL_RenderFillRect(renderer, &dirty_rect);
+            SDL_RenderFillRect(renderer, &fr_dirty);
             cb->MaintainRender(renderer, top_relative_rect);
+            SDL_SetRenderTarget(renderer, NULL);
+            //整体拷贝持久缓冲到 backbuffer 并呈现
+            SDL_RenderTexture(renderer, frame_buf, NULL, NULL);
             SDL_RenderPresent(renderer);
         }
         fps_lim.Delay();
     }
     //释放SDL资源
+    SDL_DestroyTexture(frame_buf);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     TTF_Quit();

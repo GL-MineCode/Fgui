@@ -1,15 +1,17 @@
-# Fgui --- Fair GUI Library for SDL2
+# 本项目已迁移至 SDL3
 
-## 这是一个基于 SDL2 的 GUI 库，用于快速开发基于 SDL2 的游戏或应用。  
-噢等等，那个是脏区重绘机制吗？没错这款库竟然支持脏区重绘，这使得它在处理复杂场景时能够保持良好的性能（其实由于SDL2每次Render Present 都需要交换整个缓冲区，所以性能会受到影响，导致其可能没有其他GUI库比如WinUI占用少。但这起码是SDL2这种蹩脚轮子能写出来的最好的带脏区重绘优化的GUI库了）
+# Fgui --- Fair GUI Library for SDL3
+
+## 这是一个基于 SDL3 的 GUI 库，用于快速开发基于 SDL3 的游戏或应用。  
+噢等等，那个是脏区重绘机制吗？没错这款库竟然支持脏区重绘，这使得它在处理复杂场景时能够保持良好的性能（其实由于SDL3每次Render Present 都需要交换整个缓冲区，所以性能会受到影响，导致其可能没有其他GUI库比如WinUI占用少。但这起码是SDL3这种蹩脚轮子能写出来的最好的带脏区重绘优化的GUI库了）
 
 ## 优点
 - 易于做跨平台兼容
-- 支持脏区重绘优化，性能比每帧全部重画要好一点（SDL2对性能优化一点也不友好，我已经尽力了）
+- 支持脏区重绘优化，性能比每帧全部重画要好一点（SDL3对性能优化一点也不友好，我已经尽力了）
 - 支持自定义控件
 - 支持更换配色方案（？我不知道这算不算值得说的优点，但还是加上吧）
 - 内置 15+ 种常用控件，开箱即用
-- 依赖极简：只需 SDL2 / SDL2_ttf
+- 依赖极简：只需 SDL3 / SDL3_ttf
 
 ## 缺点
 - 没排版引擎（这将是硬伤，等我有空和GenFromXML功能一起出）
@@ -48,10 +50,15 @@ int main(int,char**){
     //初始化SDL
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     TTF_Init();
-    SDL_Window* window = SDL_CreateWindow("Minimal Example",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1000,800,SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_Window* window = SDL_CreateWindow("Minimal Example",1000,800,0);
     SDL_Rect top_relative_rect = {0,0,1000,800};
-    SDL_Renderer* renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window,NULL);
     SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+    Fgui_SetWindow(window);
+
+    // 持久帧缓冲纹理：脏区重绘在离屏纹理上局部进行，再整体拷贝到 backbuffer 呈现，
+    // 避免 SDL3 双缓冲交换机制导致脏区重绘时旧画面丢失/闪烁。
+    SDL_Texture* frame_buf = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,1000,800);
 
     //准备GUI
     FontEx font({"font.ttf"});
@@ -74,7 +81,7 @@ int main(int,char**){
     while(running){
         //处理SDL事件
         while(SDL_PollEvent(&eve)){
-            if(eve.type == SDL_QUIT) running = false;
+            if(eve.type == SDL_EVENT_QUIT) running = false;
             if(SDL_GetWindowID(window) == eve.window.windowID) cb->MaintainEvent(&eve,{0,0,1000,800});
         }
         //调用Tick回调
@@ -83,18 +90,24 @@ int main(int,char**){
         SDL_Rect dirty_rect = cb->GetInvaildRect(top_relative_rect);
         //判断是否有脏区域
         if(dirty_rect.w != 0 && dirty_rect.h != 0){
-            //脏区域重绘
+            //在持久帧缓冲纹理上局部重绘脏区
+            SDL_FRect fr_dirty = toFRect(dirty_rect);
+            SDL_SetRenderTarget(renderer, frame_buf);
             SDL_SetRenderDrawColor(renderer,
                 cb->GetColorKit().BackgroundColorDarker.r,
                 cb->GetColorKit().BackgroundColorDarker.g,
                 cb->GetColorKit().BackgroundColorDarker.b, 255);
-            SDL_RenderFillRect(renderer, &dirty_rect);
+            SDL_RenderFillRect(renderer, &fr_dirty);
             cb->MaintainRender(renderer, top_relative_rect);
+            SDL_SetRenderTarget(renderer, NULL);
+            //整体拷贝持久缓冲到 backbuffer 并呈现
+            SDL_RenderTexture(renderer, frame_buf, NULL, NULL);
             SDL_RenderPresent(renderer);
         }
         fps_lim.Delay();
     }
     //释放SDL资源
+    SDL_DestroyTexture(frame_buf);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     TTF_Quit();
