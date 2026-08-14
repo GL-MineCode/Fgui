@@ -4,6 +4,8 @@
 #define ColorArg(c) c.r, c.g, c.b, c.a
 #define ColorArgNA(c) c.r, c.g, c.b
 
+#include <SDL3/SDL.h>
+
 // ============ SDL_Rect/SDL_Point -> SDL_FRect/SDL_FPoint 转换辅助 ============
 // SDL3 的渲染 API（SDL_RenderFillRect/RenderRect/RenderTexture 等）改用 float 坐标，
 // 需要 SDL_FRect/SDL_FPoint。Fgui 内部仍以 SDL_Rect/SDL_Point（int）作为逻辑坐标，
