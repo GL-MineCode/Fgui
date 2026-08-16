@@ -3268,7 +3268,7 @@ public:
                         if(this->parent){
                             SDL_Event event = {0};
                             event.type = SDL_EVENT_USER;
-                            event.user.timestamp = SDL_GetTicks();
+                            event.user.timestamp = SDL_GetTicksNS();
                             event.user.code = SDL_USEREVENT_CODE_RADIOBUTTON_REPEL;
                             this->parent->Broadcast(&event,this);
                         }
@@ -5315,7 +5315,7 @@ class TabControl : public Fgui_Control{
         }
         SDL_Event event = {0};
         event.type = SDL_EVENT_USER;
-        event.user.timestamp = SDL_GetTicks();
+        event.user.timestamp = SDL_GetTicksNS();
         event.user.code = SDL_USEREVENT_CODE_TAB_DEACTIVATE;
         tabs[index].content->MaintainEvent(&event,{});
         tabs[index].content->ClearInvaildRect();
@@ -5509,7 +5509,7 @@ class TabControl : public Fgui_Control{
         if(id == active_tab_id) return;
         SDL_Event event = {0};
         event.type = SDL_EVENT_USER;
-        event.user.timestamp = SDL_GetTicks();
+        event.user.timestamp = SDL_GetTicksNS();
         if(id.empty()){
             try{
                 auto prev_fd = FindTab(active_tab_id);
@@ -5565,7 +5565,7 @@ class TabControl : public Fgui_Control{
     void ClearTabs(){
         SDL_Event event = {0};
         event.type = SDL_EVENT_USER;
-        event.user.timestamp = SDL_GetTicks();
+        event.user.timestamp = SDL_GetTicksNS();
         try{
             auto prev_fd = FindTab(active_tab_id);
             event.user.code = SDL_USEREVENT_CODE_TAB_DEACTIVATE;
